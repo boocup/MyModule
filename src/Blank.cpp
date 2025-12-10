@@ -1,114 +1,107 @@
 #include "plugin.hpp"
 
-struct BlankModule : Module
-{
-    // A module with inputs, outputs, parameters (knobs and switches),
-    // and/or lights will define enums to identify each one:
-    //
-    //enum Params {
-    //    // your params
-    //    NUM_PARAMS // last one counts how many
-    //};
-    //enum Inputs {
-    //    // your inputs
-    //    NUM_INPUTS
-    //};
-    //enum Outputs {
-    //    // your outputs
-    //    NUM_OUTPUTS
-    //};
-    //enum Lights {
-    //    // your lights
-    //    NUM_LIGHTS
-    //};
+using namespace rack;
+using namespace rack::componentlibrary;
+using namespace rack::ui;
 
-    // To make this module more than a blanking plate, configure inputs and outputs
-    // in the Module constructor
-    //
-    //BlankModule()
-    //{
-    //    config(Params::NUM_PARAMS, Inputs::NUM_INPUTS, Outputs::NUM_OUTPUTS, Lights::NUM_LIGHTS);
-    //
-    // Configure each param, input, output, and light:
-    //    configParam(Params::some_param, minValue, maxValue, defaultValue, "name", "unit");
-    //    configInput(Inputs::some_input, "input name");
-    //    configOutput(Outputs::some_output, "output name");
-    //    configLight(Lights::some_light, "light_name");
-    //
-    //}
+struct BlankModule : Module {
+    enum ParamId {
+        KNOB_PARAM,
+        PARAMS_LEN
+    };
+    enum InputId {
+        IN_INPUT,
+        INPUTS_LEN
+    };
+    enum OutputId {
+        OUT_OUTPUT,
+        OUTPUTS_LEN
+    };
+    enum LightId {
+        IN_LIGHT,
+        LIGHTS_LEN
+    };
 
-    // Save and restore configuration and settings by overriding dataToJson/dataFromJson
+    BlankModule() {
+        config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 
-    //json_t* dataToJson() override
-    //{
-    //    auto root = json_object(); //create container
-    //    // json_object_set_new(root, "flag", json_boolean(some_bool));
-    //    // json_object_set_new(root, "number", json_real(some_float);
-    //    return root;
-    //}
+        configParam(KNOB_PARAM, 0.f, 10.f, 5.f, "Output voltage");
+        configInput(IN_INPUT, "Monitor in");
+        configOutput(OUT_OUTPUT, "DC out");
+        configLight(IN_LIGHT, "Input level indicator");
+    }
 
-    //void dataFromJson(json_t* root) override
-    //{
-    //    auto j = json_object_get(root, "flag");
-    //    if (j) {
-    //        some_bool = json_is_true(j);
-    //    }
-    //    j = json_object_get(root, "number");
-    //    if (j) {
-    //        some_float = json_number_value(j);
-    //    }
-    //}
+    void process(const ProcessArgs& args) override {
+        // OUT is always the knob value (0–10 V)
+        float out = params[KNOB_PARAM].getValue();
+        outputs[OUT_OUTPUT].setVoltage(out);
 
-    // To save precious CPU, many modules will process parameter changes at
-    // a slower rate than the audio rate.
-    //
-    // This example shows a simple parameter update rate of 1/64th the sample rate.
-    // You can use a ::rack::dsp::timer to update relative to clock time, rather
-    // than change based on sample rate.
-    //
-    //const int PARAM_INTERVAL = 64;
-    //void processParams()
-    //{
-    //    // process parameters here
-    //}
+        // IN is only used for the LED meter
+        float in = 0.f;
+        if (inputs[IN_INPUT].isConnected()) {
+            in = inputs[IN_INPUT].getVoltage();
+        }
 
-    // To process inputs and outputs, override process()
-    //
-    //void process(const ProcessArgs& args) override
-    //{
-    //    // Process params every PARAM_INTERVAL samples
-    //    if (0 == ((args.frame + getId()) % PARAM_INTERVAL)) {
-    //        processParams();
-    //    }
-
-    //    // Read inputs
-
-    //    // Produce output
-    //}
-
+        float brightness = std::min(std::abs(in) / 10.f, 1.f);
+        lights[IN_LIGHT].setBrightness(brightness);
+    }
 };
 
-struct BlankModuleWidget : ModuleWidget
-{
-    BlankModuleWidget(BlankModule *module)
-    {
-        setModule(module);
-        setPanel(createPanel(asset::plugin(pluginInstance, "res/Blank.svg"), asset::plugin(pluginInstance, "res/Blank-dark.svg")));
 
-        // Standard VCV Rack screws
+struct BlankModuleWidget : ModuleWidget {
+    BlankModuleWidget(BlankModule* module) {
+        setModule(module);
+        setPanel(createPanel(asset::plugin(pluginInstance, "res/Blank.svg")));
+
+        // Screws
         addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, 0)));
         addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
         addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
         addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-    }
 
-    // Add options to your module's menu here
-    //void appendContextMenu(Menu *menu) override
-    //{
-    //}
+        // Layout constants
+        const float jackX = 12.f;    // left column (jacks)
+        const float ctrlX = 21.f;    // right column (LED / knob)
+
+        // Two rows, up on the panel
+        const float row1Y = 60.f;    // IN + LED
+        const float row2Y = 90.f;    // OUT + knob
+
+        // ===== Row 1: IN jack + LED (monitor only) =====
+        addInput(createInputCentered<PJ301MPort>(
+            mm2px(Vec(jackX, row1Y)),
+            module,
+            BlankModule::IN_INPUT
+        ));
+
+        addChild(createLightCentered<SmallLight<GreenLight>>(
+            mm2px(Vec(ctrlX, row1Y)),
+            module,
+            BlankModule::IN_LIGHT
+        ));
+
+        // ===== Row 2: OUT jack + KNOB (always tied together) =====
+        addOutput(createOutputCentered<PJ301MPort>(
+            mm2px(Vec(jackX, row2Y)),
+            module,
+            BlankModule::OUT_OUTPUT
+        ));
+
+        addParam(createParamCentered<RoundBlackKnob>(
+            mm2px(Vec(ctrlX, row2Y)),
+            module,
+            BlankModule::KNOB_PARAM
+        ));
+
+        // Title label
+        {
+            auto* label = createWidget<Label>(mm2px(Vec(13.5f, 25.f)));
+            label->text = "thereelpeet";
+            label->color = nvgRGB(0x27, 0x27, 0x27);
+            addChild(label);
+        }
+    }
 };
 
-// The required model for each module is referenced by plugin.h and plugin.cpp
-// The pattern for each module is:
-//     Model *modelSomething = createModel<SomethingModule, SomethingModuleWidget>("slug-something");
-Model *modelBlank = createModel<BlankModule, BlankModuleWidget>("blank");
+
+Model* modelBlank = createModel<BlankModule, BlankModuleWidget>("blank");

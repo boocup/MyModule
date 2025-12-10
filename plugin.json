@@ -1,9 +1,9 @@
 {
-    "slug": "generic-blank",
+    "slug": "generic-blankkk",
     "name": "company",
     "version": "2.1.1",
     "license": "MIT",
-    "brand": "my-brand",
+    "brand": "my-peet-brand",
     "author": "",
     "authorEmail": "",
     "authorUrl": "",
@@ -18,8 +18,9 @@
         "slug": "blank",
         "name": "Blank",
         "description": "Generic blank panel",
+        "panel": "res/Blank.svg",
         "manualUrl": "https://github.com/Paul-Dempsey/GenericBlank/blob/main/doc/Blank.md#blank",
-        "tags": [ "Visual", "Blank" ]
-      }
+        "tags": [ "Visual", "Blank" ]      
+     }
     ]
   }
