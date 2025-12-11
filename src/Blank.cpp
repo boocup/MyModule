@@ -4,90 +4,108 @@ using namespace rack;
 using namespace rack::componentlibrary;
 using namespace rack::ui;
 
+// =======================
+//   MODULE DEFINITION
+// =======================
+
 struct BlankModule : Module {
     enum ParamId {
-        BUTTON_PARAM,
+        BUTTON_A_PARAM,
+        BUTTON_B_PARAM,
         PARAMS_LEN
     };
     enum InputId {
-        IN_INPUT,
+        IN_A_INPUT,
+        IN_B_INPUT,
         INPUTS_LEN
     };
     enum OutputId {
-        OUT_OUTPUT,    // Stepped CV
-        TRIG_OUTPUT,   // Trigger
+        OUT_A_OUTPUT,    // Stepped CV A
+        TRIG_A_OUTPUT,   // Trigger A
+        OUT_B_OUTPUT,    // Stepped CV B
+        TRIG_B_OUTPUT,   // Trigger B
         OUTPUTS_LEN
     };
     enum LightId {
-        LIGHTS_LEN   // <-- no lights now
+        LIGHTS_LEN   // no lights
     };
 
-    // Visualization value 0..1 for the meter
-    float vizLevel = 0.f;
+    // Visualization values 0..1 for meters
+    float vizLevelA = 0.f;
+    float vizLevelB = 0.f;
 
     // Timer for rate-limited logging
     float logTimer = 0.f;
 
-    // 3-step loop state
-    bool loopRunning = false;
-    int  loopStep    = 0;      // 0,1,2
-    float loopTimer  = 0.f;    // seconds
+    // Loop A state
+    bool  loopRunningA = false;
+    int   loopStepA    = 0;
+    float loopTimerA   = 0.f;
+    float trigTimerA   = 0.f;
+    dsp::SchmittTrigger buttonTrigA;
 
-    // trigger pulse state
-    float trigTimer  = 0.f;    // seconds remaining in current trigger
-
-    // button edge detector
-    dsp::SchmittTrigger buttonTrig;
+    // Loop B state
+    bool  loopRunningB = false;
+    int   loopStepB    = 0;
+    float loopTimerB   = 0.f;
+    float trigTimerB   = 0.f;
+    dsp::SchmittTrigger buttonTrigB;
 
     BlankModule() {
         config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 
-        configParam(BUTTON_PARAM, 0.f, 1.f, 0.f, "Loop on/off");
+        configParam(BUTTON_A_PARAM, 0.f, 1.f, 0.f, "Loop A on/off");
+        configParam(BUTTON_B_PARAM, 0.f, 1.f, 0.f, "Loop B on/off");
 
-        configInput(IN_INPUT, "Tempo CV in");
+        configInput(IN_A_INPUT, "Tempo CV A");
+        configInput(IN_B_INPUT, "Tempo CV B");
 
-        configOutput(OUT_OUTPUT,  "Stepped CV");
-        configOutput(TRIG_OUTPUT, "Trigger");
+        configOutput(OUT_A_OUTPUT,  "Stepped CV A");
+        configOutput(TRIG_A_OUTPUT, "Trigger A");
+        configOutput(OUT_B_OUTPUT,  "Stepped CV B");
+        configOutput(TRIG_B_OUTPUT, "Trigger B");
     }
 
-    void process(const ProcessArgs& args) override {
-
-        //
-        // BUTTON TOGGLE
-        //
-        if (buttonTrig.process(params[BUTTON_PARAM].getValue())) {
+    void processLoop(
+        // per-loop IO/state
+        bool& loopRunning,
+        int& loopStep,
+        float& loopTimer,
+        float& trigTimer,
+        float inV,
+        float& vizLevel,
+        float& outCV,
+        float& outTrig,
+        dsp::SchmittTrigger& buttonTrig,
+        float buttonParam,
+        const ProcessArgs& args
+    ) {
+        // Button toggle
+        if (buttonTrig.process(buttonParam)) {
             loopRunning = !loopRunning;
         }
 
-        //
-        // READ INPUT FOR TEMPO + METER DISPLAY
-        //
-        float in = 0.f;
-        if (inputs[IN_INPUT].isConnected())
-            in = inputs[IN_INPUT].getVoltage();
-
-        // map input to tempo speed -5V..+5V → 1.0s..0.1s
-        float tempoV = in;
+        // Tempo mapping: -5..+5 V -> 1.0..0.1 s
+        float tempoV = inV;
         float norm = clamp((tempoV + 5.f) / 10.f, 0.f, 1.f);
         const float maxStepTime = 1.0f;
         const float minStepTime = 0.1f;
         float stepTime = maxStepTime - (maxStepTime - minStepTime) * norm;
 
-        // meter visualization from |in|
+        // Meter level from |in|
         const float fullScale = 5.f;
-        float level = std::min(std::fabs(in) / fullScale, 1.f);
+        float level = std::min(std::fabs(inV) / fullScale, 1.f);
         vizLevel = 0.8f * level + 0.2f * vizLevel;
 
-        //
-        // LOOP + TRIGGER LOGIC
-        //
-        float out = 0.f;     // CV out
-        float trigOut = 0.f; // trigger out
+        // Default outputs
+        outCV   = 0.f;
+        outTrig = 0.f;
 
-        // decay existing trigger
+        // Decay existing trigger
         if (trigTimer > 0.f) {
             trigTimer -= args.sampleTime;
-            if (trigTimer < 0.f) trigTimer = 0.f;
+            if (trigTimer < 0.f)
+                trigTimer = 0.f;
         }
 
         if (loopRunning) {
@@ -96,65 +114,93 @@ struct BlankModule : Module {
                 loopTimer -= stepTime;
                 loopStep = (loopStep + 1) % 3;
 
-                // fire trigger pulse
-                trigTimer = 0.01f;  // 10 ms
+                // Fire trigger for this step
+                trigTimer = 0.01f; // 10 ms
             }
 
-            // hard-coded 3-step CV
             float seqVals[3] = {0.f, 2.f, 4.f};
-            out = seqVals[loopStep];
+            outCV = seqVals[loopStep];
         }
         else {
             loopTimer = 0.f;
-            loopStep = 0;
+            loopStep  = 0;
             trigTimer = 0.f;
         }
 
         if (trigTimer > 0.f)
-            trigOut = 10.f;
+            outTrig = 10.f;
+    }
 
-        //
-        // SEND OUTPUTS
-        //
-        outputs[OUT_OUTPUT].setVoltage(out);
-        outputs[TRIG_OUTPUT].setVoltage(trigOut);
+    void process(const ProcessArgs& args) override {
+        // Read inputs
+        float inA = 0.f;
+        if (inputs[IN_A_INPUT].isConnected())
+            inA = inputs[IN_A_INPUT].getVoltage();
 
-        //
-        // RATE-LIMITED DEBUG LOGGING
-        //
+        float inB = 0.f;
+        if (inputs[IN_B_INPUT].isConnected())
+            inB = inputs[IN_B_INPUT].getVoltage();
+
+        // Outputs per loop
+        float outA = 0.f, trigA = 0.f;
+        float outB = 0.f, trigB = 0.f;
+
+        // Process both loops
+        processLoop(
+            loopRunningA, loopStepA, loopTimerA, trigTimerA,
+            inA, vizLevelA, outA, trigA, buttonTrigA,
+            params[BUTTON_A_PARAM].getValue(), args
+        );
+
+        processLoop(
+            loopRunningB, loopStepB, loopTimerB, trigTimerB,
+            inB, vizLevelB, outB, trigB, buttonTrigB,
+            params[BUTTON_B_PARAM].getValue(), args
+        );
+
+        // Send outputs
+        outputs[OUT_A_OUTPUT].setVoltage(outA);
+        outputs[TRIG_A_OUTPUT].setVoltage(trigA);
+        outputs[OUT_B_OUTPUT].setVoltage(outB);
+        outputs[TRIG_B_OUTPUT].setVoltage(trigB);
+
+        // Rate-limited log
         logTimer += args.sampleTime;
         if (logTimer >= 0.1f) {
             logTimer = 0.f;
-            INFO("IN=%.3f  stepTime=%.3f  loop=%d  step=%d  CV=%.3f  TRIG=%.1f",
-                 in, stepTime, (int)loopRunning, loopStep, out, trigOut);
+            INFO("A: in=%.3f step=%d running=%d cv=%.3f trig=%.1f | B: in=%.3f step=%d running=%d cv=%.3f trig=%.1f",
+                 inA, loopStepA, (int)loopRunningA, outA, trigA,
+                 inB, loopStepB, (int)loopRunningB, outB, trigB);
         }
     }
 };
 
 
-// ============================
-//   VERTICAL METER WIDGET
-// ============================
+// =======================
+//   VERTICAL METER
+// =======================
 
 struct VerticalMeter : TransparentWidget {
     BlankModule* module = nullptr;
+    bool rightSide = false;  // false = A, true = B
 
     void draw(const DrawArgs& args) override {
         if (!module)
             return;
 
-        float level = clamp(module->vizLevel, 0.f, 1.f);
+        float level = rightSide ? module->vizLevelB : module->vizLevelA;
+        level = clamp(level, 0.f, 1.f);
 
         NVGcontext* vg = args.vg;
         Vec size = box.size;
 
-        // background
+        // Background
         nvgBeginPath(vg);
         nvgRoundedRect(vg, 0, 0, size.x, size.y, 2);
         nvgFillColor(vg, nvgRGBA(0, 0, 0, 80));
         nvgFill(vg);
 
-        // filled section
+        // Fill
         float filledH = size.y * level;
         float y = size.y - filledH;
 
@@ -173,7 +219,7 @@ struct VerticalMeter : TransparentWidget {
             nvgFill(vg);
         }
 
-        // border
+        // Border
         nvgBeginPath(vg);
         nvgRoundedRect(vg, 0.5, 0.5, size.x - 1, size.y - 1, 2);
         nvgStrokeColor(vg, nvgRGBA(200, 255, 255, 180));
@@ -183,78 +229,112 @@ struct VerticalMeter : TransparentWidget {
 };
 
 
-// ============================
-//     MODULE WIDGET LAYOUT
-// ============================
+// =======================
+//   WIDGET LAYOUT
+// =======================
 
 struct BlankModuleWidget : ModuleWidget {
     BlankModuleWidget(BlankModule* module) {
         setModule(module);
         setPanel(createPanel(asset::plugin(pluginInstance, "res/Blank.svg")));
 
-        // screws
+        // Screws
         addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, 0)));
         addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
         addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
         addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-        const float jackX = 12.f;
-        const float ctrlX = 21.f;
-        const float row1Y = 60.f;
-        const float row2Y = 90.f;
+        // Layout constants (mm)
+        const float jackX1 = 12.f;
+        const float ctrlX1 = 21.f;
 
-        //
-        // BUTTON — moved left
-        //
+        const float jackX2 = 32.f;   // right side column
+        const float ctrlX2 = 41.f;
+
+        const float row1Y  = 60.f;   // IN + meter
+        const float row2Y  = 90.f;   // OUT jacks
+
+        // ----- Buttons -----
         addParam(createParamCentered<TL1105>(
-            mm2px(Vec(ctrlX - 6.f, 45.f)),
+            mm2px(Vec(ctrlX1 - 6.f, 45.f)),
             module,
-            BlankModule::BUTTON_PARAM
+            BlankModule::BUTTON_A_PARAM
+        ));
+        addParam(createParamCentered<TL1105>(
+            mm2px(Vec(ctrlX2 - 6.f, 45.f)),
+            module,
+            BlankModule::BUTTON_B_PARAM
         ));
 
-        //
-        // IN jack
-        //
+        // ----- Row 1: IN jacks -----
         addInput(createInputCentered<PJ301MPort>(
-            mm2px(Vec(jackX, row1Y)),
+            mm2px(Vec(jackX1, row1Y)),
             module,
-            BlankModule::IN_INPUT
+            BlankModule::IN_A_INPUT
+        ));
+        addInput(createInputCentered<PJ301MPort>(
+            mm2px(Vec(jackX2, row1Y)),
+            module,
+            BlankModule::IN_B_INPUT
         ));
 
-        //
-        // VERTICAL METER
-        //
+        // ----- Meters -----
         {
-            Vec meterSizeMm    = Vec(4.f, 20.f);
-            Vec meterTopLeftMm = Vec(
-                ctrlX - meterSizeMm.x * 0.5f - 3.f,
-                row1Y - meterSizeMm.y * 0.5f
-            );
+            Vec meterSizeMm = Vec(4.f, 20.f);
 
-            auto* meter = createWidget<VerticalMeter>(mm2px(meterTopLeftMm));
-            meter->box.size = mm2px(meterSizeMm);
-            meter->module   = module;
-            addChild(meter);
+            // Left meter (A)
+            {
+                Vec topLeftMm(
+                    ctrlX1 - meterSizeMm.x * 0.5f - 3.f,
+                    row1Y - meterSizeMm.y * 0.5f
+                );
+                auto* meterA = createWidget<VerticalMeter>(mm2px(topLeftMm));
+                meterA->box.size = mm2px(meterSizeMm);
+                meterA->module   = module;
+                meterA->rightSide = false;
+                addChild(meterA);
+            }
+
+            // Right meter (B)
+            {
+                Vec topLeftMm(
+                    ctrlX2 - meterSizeMm.x * 0.5f - 3.f,
+                    row1Y - meterSizeMm.y * 0.5f
+                );
+                auto* meterB = createWidget<VerticalMeter>(mm2px(topLeftMm));
+                meterB->box.size = mm2px(meterSizeMm);
+                meterB->module   = module;
+                meterB->rightSide = true;
+                addChild(meterB);
+            }
         }
 
-        //
-        // OUT jacks (CV + Trigger)
-        //
+        // ----- Row 2: OUT jacks -----
+        // Left pair: CV A + TRIG A
         addOutput(createOutputCentered<PJ301MPort>(
-            mm2px(Vec(jackX, row2Y)),
+            mm2px(Vec(jackX1, row2Y)),
             module,
-            BlankModule::OUT_OUTPUT
+            BlankModule::OUT_A_OUTPUT
+        ));
+        addOutput(createOutputCentered<PJ301MPort>(
+            mm2px(Vec(ctrlX1, row2Y)),
+            module,
+            BlankModule::TRIG_A_OUTPUT
         ));
 
+        // Right pair: CV B + TRIG B
         addOutput(createOutputCentered<PJ301MPort>(
-            mm2px(Vec(ctrlX, row2Y)),
+            mm2px(Vec(jackX2, row2Y)),
             module,
-            BlankModule::TRIG_OUTPUT
+            BlankModule::OUT_B_OUTPUT
+        ));
+        addOutput(createOutputCentered<PJ301MPort>(
+            mm2px(Vec(ctrlX2, row2Y)),
+            module,
+            BlankModule::TRIG_B_OUTPUT
         ));
 
-        //
-        // TITLE
-        //
+        // Title
         {
             auto* label = createWidget<Label>(mm2px(Vec(13.5f, 25.f)));
             label->text = "thereelpeet";
@@ -263,6 +343,5 @@ struct BlankModuleWidget : ModuleWidget {
         }
     }
 };
-
 
 Model* modelBlank = createModel<BlankModule, BlankModuleWidget>("blank");
