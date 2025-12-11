@@ -22,6 +22,11 @@ struct BlankModule : Module {
         LIGHTS_LEN
     };
 
+    // <-- You were missing this
+    // Visualization value 0..1 for the meter / debug
+    float vizLevel = 0.f;
+    float logTimer = 0.f;
+
     BlankModule() {
         config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 
@@ -32,18 +37,53 @@ struct BlankModule : Module {
     }
 
     void process(const ProcessArgs& args) override {
+        //
         // OUT is always the knob value (0–10 V)
+        //
         float out = params[KNOB_PARAM].getValue();
         outputs[OUT_OUTPUT].setVoltage(out);
 
-        // IN is only used for the LED meter
+        //
+        // IN is only used for the meter
+        //
         float in = 0.f;
         if (inputs[IN_INPUT].isConnected()) {
             in = inputs[IN_INPUT].getVoltage();
         }
 
-        float brightness = std::min(std::abs(in) / 10.f, 1.f);
-        lights[IN_LIGHT].setBrightness(brightness);
+        //
+        // Map input voltage to 0–1
+        //
+        const float fullScale = 5.f;          // 5 V → full meter
+        float level = std::min(std::fabs(in) / fullScale, 1.f);
+
+        //
+        // Smoothing (prevents flicker)
+        //
+        const float a = 0.8f;                 // closer to 1 = faster response
+        vizLevel = a * level + (1.f - a) * vizLevel;
+
+        //
+        // LED brightness (use the smoothed value)
+        //
+        lights[IN_LIGHT].setBrightness(vizLevel);
+
+
+        //
+        // RATE-LIMITED LOGGING (about every 0.1 seconds)
+        //
+        logTimer += args.sampleTime;
+        if (logTimer >= 0.1f) {
+            logTimer = 0.f;
+
+            float _in    = in;
+            float _level = level;
+            float _viz   = vizLevel;
+
+            INFO("in=%.3f  level=%.3f  vizLevel=%.3f", _in, _level, _viz);
+        }
+
+
     }
 };
 
@@ -102,6 +142,5 @@ struct BlankModuleWidget : ModuleWidget {
         }
     }
 };
-
 
 Model* modelBlank = createModel<BlankModule, BlankModuleWidget>("blank");
