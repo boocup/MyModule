@@ -46,11 +46,13 @@
   <!-- Main background -->
   <rect id="panel" x="0" y="0" width="150" height="380" fill="url(#bgGrad)" />
 
-  <!-- Lane A background -->
-  <rect x="14" y="0" width="56" height="380" fill="#cfcfcf" opacity="0.45"/>
+   <!-- Lane A background (rounded) -->
+   <rect x="14" y="6" width="56" height="368" rx="10" ry="10"
+         fill="#cfcfcf" opacity="0.45"/>
 
-  <!-- Lane B background -->
-  <rect x="80" y="0" width="56" height="380" fill="#cfcfcf" opacity="0.45"/>
+   <!-- Lane B background (rounded) -->
+   <rect x="80" y="6" width="56" height="368" rx="10" ry="10"
+         fill="#cfcfcf" opacity="0.45"/>
 
   <!-- Hatch drawn everywhere (simple lines = Rack-safe) -->
   <g id="hatchEverywhere" opacity="0.10">
@@ -101,13 +103,18 @@
     <line x1="148"  y1="0" x2="528"  y2="380" stroke="#000000" stroke-width="1"/>
   </g>
 
-  <!-- “Erase” hatch everywhere EXCEPT the two lanes by painting gradient covers -->
-  <!-- Left margin cover (0..14) -->
-  <rect x="0" y="0" width="14" height="380" fill="url(#bgGrad)"/>
-  <!-- Middle gap cover (70..80) -->
-  <rect x="70" y="0" width="10" height="380" fill="url(#bgGrad)"/>
-  <!-- Right margin cover (136..150) -->
-  <rect x="136" y="0" width="14" height="380" fill="url(#bgGrad)"/>
+
+   <!-- Erase hatch everywhere except inside the rounded lane shapes -->
+   <!-- Top cover -->
+   <rect x="0" y="0" width="150" height="6" fill="url(#bgGrad)"/>
+   <!-- Bottom cover -->
+   <rect x="0" y="374" width="150" height="6" fill="url(#bgGrad)"/>
+   <!-- Left cover (up to lane A) -->
+   <rect x="0" y="6" width="14" height="368" fill="url(#bgGrad)"/>
+   <!-- Right cover (after lane B) -->
+   <rect x="136" y="6" width="14" height="368" fill="url(#bgGrad)"/>
+   <!-- Middle cover (between lanes) -->
+   <rect x="70" y="6" width="10" height="368" fill="url(#bgGrad)"/>
 
   <!-- Redraw center seam on top -->
   <rect x="74.5" y="0" width="1" height="380" fill="#b8b8b8" opacity="0.6"/>
