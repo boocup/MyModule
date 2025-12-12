@@ -12,8 +12,12 @@ struct BlankModule : Module {
     enum ParamId {
         BUTTON_A_PARAM,
         RAND_A_PARAM,
+        LENGTH_A_PARAM,
+
         BUTTON_B_PARAM,
         RAND_B_PARAM,
+        LENGTH_B_PARAM,
+
         PARAMS_LEN
     };
     enum InputId {
@@ -32,36 +36,37 @@ struct BlankModule : Module {
         LIGHTS_LEN
     };
 
-    // Tempo visualization (0..1) per lane
+    // tempo visualization (0..1)
     float vizTempoA = 0.f;
     float vizTempoB = 0.f;
 
-    // Loop A state
-    bool  loopRunningA = false;
-    int   loopStepA    = 0;
-    float loopTimerA   = 0.f;
-    float trigTimerA   = 0.f;
-    float seqA[3]      = {0.f, 2.f, 4.f};
+    // loop A
+    bool  runningA = false;
+    int   stepA = 0;
+    float timerA = 0.f;
+    float trigTimerA = 0.f;
+    float seqA[16];
 
-    // Loop B state
-    bool  loopRunningB = false;
-    int   loopStepB    = 0;
-    float loopTimerB   = 0.f;
-    float trigTimerB   = 0.f;
-    float seqB[3]      = {0.f, 2.f, 4.f};
+    // loop B
+    bool  runningB = false;
+    int   stepB = 0;
+    float timerB = 0.f;
+    float trigTimerB = 0.f;
+    float seqB[16];
 
-    // Button edge detectors
-    dsp::SchmittTrigger onOffTrigA, randTrigA;
-    dsp::SchmittTrigger onOffTrigB, randTrigB;
+    dsp::SchmittTrigger onA, randA;
+    dsp::SchmittTrigger onB, randB;
 
     BlankModule() {
         config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 
         configParam(BUTTON_A_PARAM, 0.f, 1.f, 0.f, "Loop A on/off");
         configParam(RAND_A_PARAM,   0.f, 1.f, 0.f, "Randomize A");
+        configParam(LENGTH_A_PARAM, 2.f, 16.f, 3.f, "Length A");
 
         configParam(BUTTON_B_PARAM, 0.f, 1.f, 0.f, "Loop B on/off");
         configParam(RAND_B_PARAM,   0.f, 1.f, 0.f, "Randomize B");
+        configParam(LENGTH_B_PARAM, 2.f, 16.f, 3.f, "Length B");
 
         configInput(IN_A_INPUT, "Tempo CV A");
         configInput(IN_B_INPUT, "Tempo CV B");
@@ -70,44 +75,44 @@ struct BlankModule : Module {
         configOutput(TRIG_A_OUTPUT, "Trigger A");
         configOutput(OUT_B_OUTPUT,  "CV B");
         configOutput(TRIG_B_OUTPUT, "Trigger B");
+
+        for (int i = 0; i < 16; i++) {
+            seqA[i] = random::uniform() * 5.f;
+            seqB[i] = random::uniform() * 5.f;
+        }
     }
 
-    void randomizeSeq(float seq[3]) {
-        // 0..5V random values (easy to feed Scales)
-        for (int i = 0; i < 3; i++) {
+    void randomize(float* seq) {
+        for (int i = 0; i < 16; i++)
             seq[i] = random::uniform() * 5.f;
-        }
     }
 
     void processLane(
         bool& running, int& step, float& timer, float& trigTimer,
-        float inV, float& vizTempo, float seq[3],
+        float inV, float& viz,
+        float* seq, int length,
         float& outCV, float& outTrig,
-        dsp::SchmittTrigger& onOffTrig,
+        dsp::SchmittTrigger& onTrig,
         dsp::SchmittTrigger& randTrig,
-        float onOffParam, float randParam,
+        float onVal, float randVal,
         const ProcessArgs& args
     ) {
-        // Toggle on/off
-        if (onOffTrig.process(onOffParam))
+        if (onTrig.process(onVal))
             running = !running;
 
-        // Randomize values
-        if (randTrig.process(randParam))
-            randomizeSeq(seq);
+        if (randTrig.process(randVal))
+            randomize(seq);
 
-        // Tempo mapping: -5..+5 V -> 1.0..0.1 s per step
-        float norm = clamp((inV + 5.f) / 10.f, 0.f, 1.f); // 0=slow, 1=fast
-        float stepTime = 1.0f - 0.9f * norm;             // 1.0..0.1
+        // tempo mapping: -5..+5V -> 1.0..0.1s
+        float norm = clamp((inV + 5.f) / 10.f, 0.f, 1.f);
+        float stepTime = 1.0f - 0.9f * norm;
 
-        // Tempo indicator: show speed (norm), not amplitude
-        vizTempo = 0.85f * norm + 0.15f * vizTempo;
+        // tempo indicator shows speed (norm)
+        viz = 0.85f * norm + 0.15f * viz;
 
-        // Defaults
         outCV = 0.f;
         outTrig = 0.f;
 
-        // Trigger decay
         if (trigTimer > 0.f) {
             trigTimer -= args.sampleTime;
             if (trigTimer < 0.f) trigTimer = 0.f;
@@ -117,8 +122,8 @@ struct BlankModule : Module {
             timer += args.sampleTime;
             if (timer >= stepTime) {
                 timer -= stepTime;
-                step = (step + 1) % 3;
-                trigTimer = 0.01f; // 10 ms trigger
+                step = (step + 1) % length;
+                trigTimer = 0.01f; // 10ms
             }
             outCV = seq[step];
         } else {
@@ -135,21 +140,24 @@ struct BlankModule : Module {
         float inA = inputs[IN_A_INPUT].isConnected() ? inputs[IN_A_INPUT].getVoltage() : 0.f;
         float inB = inputs[IN_B_INPUT].isConnected() ? inputs[IN_B_INPUT].getVoltage() : 0.f;
 
+        int lenA = (int) std::round(params[LENGTH_A_PARAM].getValue());
+        int lenB = (int) std::round(params[LENGTH_B_PARAM].getValue());
+
         float outA = 0.f, trigA = 0.f;
         float outB = 0.f, trigB = 0.f;
 
-        processLane(loopRunningA, loopStepA, loopTimerA, trigTimerA,
-                    inA, vizTempoA, seqA,
+        processLane(runningA, stepA, timerA, trigTimerA,
+                    inA, vizTempoA, seqA, lenA,
                     outA, trigA,
-                    onOffTrigA, randTrigA,
+                    onA, randA,
                     params[BUTTON_A_PARAM].getValue(),
                     params[RAND_A_PARAM].getValue(),
                     args);
 
-        processLane(loopRunningB, loopStepB, loopTimerB, trigTimerB,
-                    inB, vizTempoB, seqB,
+        processLane(runningB, stepB, timerB, trigTimerB,
+                    inB, vizTempoB, seqB, lenB,
                     outB, trigB,
-                    onOffTrigB, randTrigB,
+                    onB, randB,
                     params[BUTTON_B_PARAM].getValue(),
                     params[RAND_B_PARAM].getValue(),
                     args);
@@ -185,7 +193,7 @@ struct VerticalTempoMeter : TransparentWidget {
         nvgFillColor(vg, nvgRGBA(0, 0, 0, 70));
         nvgFill(vg);
 
-        // filled portion bottom->top
+        // fill bottom->top
         float filledH = size.y * level;
         float y = size.y - filledH;
 
@@ -222,61 +230,77 @@ struct BlankModuleWidget : ModuleWidget {
         setModule(module);
         setPanel(createPanel(asset::plugin(pluginInstance, "res/Blank.svg")));
 
+        // Screws
         addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, 0)));
         addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
         addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
         addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-        // Columns (mm)
-        const float jackXA = 12.f;
-        const float ctrlXA = 21.f;
+        // columns (mm)
+        const float colA = 21.f;
+        const float colB = 41.f;
 
-        const float jackXB = 32.f;
-        const float ctrlXB = 41.f;
+        // rows (mm)
+        const float onY   = 36.f;
+        const float randY = 48.f;
+        const float knobY = 60.f;
 
-        // Rows (mm)
-        const float onY   = 38.f;
-        const float randY = 50.f;
-        const float inY   = 65.f;
-        const float outY  = 95.f;
+        // Spacing tweaks you asked for:
+        const float meterY = 80.f;  // more gap below knobs
+        const float inY    = 94.f;  // more gap below meters
+        const float outY   = 116.f; // keep outputs comfortably below inputs
 
-        // ON/OFF buttons (top row)
-        addParam(createParamCentered<TL1105>(mm2px(Vec(ctrlXA - 6.f, onY)), module, BlankModule::BUTTON_A_PARAM));
-        addParam(createParamCentered<TL1105>(mm2px(Vec(ctrlXB - 6.f, onY)), module, BlankModule::BUTTON_B_PARAM));
+        // ON/OFF
+        addParam(createParamCentered<TL1105>(mm2px(Vec(colA - 6.f, onY)), module, BlankModule::BUTTON_A_PARAM));
+        addParam(createParamCentered<TL1105>(mm2px(Vec(colB - 6.f, onY)), module, BlankModule::BUTTON_B_PARAM));
 
-        // RANDOM buttons (underneath)
-        addParam(createParamCentered<TL1105>(mm2px(Vec(ctrlXA - 6.f, randY)), module, BlankModule::RAND_A_PARAM));
-        addParam(createParamCentered<TL1105>(mm2px(Vec(ctrlXB - 6.f, randY)), module, BlankModule::RAND_B_PARAM));
+        // RANDOM
+        addParam(createParamCentered<TL1105>(mm2px(Vec(colA - 6.f, randY)), module, BlankModule::RAND_A_PARAM));
+        addParam(createParamCentered<TL1105>(mm2px(Vec(colB - 6.f, randY)), module, BlankModule::RAND_B_PARAM));
 
-        // IN jacks
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(jackXA, inY)), module, BlankModule::IN_A_INPUT));
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(jackXB, inY)), module, BlankModule::IN_B_INPUT));
+        // LENGTH knobs
+        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(colA - 6.f, knobY)), module, BlankModule::LENGTH_A_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(colB - 6.f, knobY)), module, BlankModule::LENGTH_B_PARAM));
 
-        // Tempo meters (next to each IN)
+        // Tempo meters
         {
             Vec meterSizeMm(4.f, 18.f);
 
-            // A meter slightly right of A IN
-            auto* mA = createWidget<VerticalTempoMeter>(mm2px(Vec(ctrlXA - 4.f, inY - meterSizeMm.y * 0.5f)));
+            auto* mA = createWidget<VerticalTempoMeter>(
+                mm2px(Vec(colA - 6.f - meterSizeMm.x * 0.5f, meterY - meterSizeMm.y * 0.5f))
+            );
             mA->box.size = mm2px(meterSizeMm);
             mA->module = module;
             mA->isB = false;
             addChild(mA);
 
-            // B meter slightly right of B IN
-            auto* mB = createWidget<VerticalTempoMeter>(mm2px(Vec(ctrlXB - 4.f, inY - meterSizeMm.y * 0.5f)));
+            auto* mB = createWidget<VerticalTempoMeter>(
+                mm2px(Vec(colB - 6.f - meterSizeMm.x * 0.5f, meterY - meterSizeMm.y * 0.5f))
+            );
             mB->box.size = mm2px(meterSizeMm);
             mB->module = module;
             mB->isB = true;
             addChild(mB);
         }
 
-        // OUT jacks (CV + TRIG for each lane)
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(jackXA, outY)), module, BlankModule::OUT_A_OUTPUT));
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(ctrlXA, outY)), module, BlankModule::TRIG_A_OUTPUT));
+        // IN jacks (tempo CV)
+        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(12.f, inY)), module, BlankModule::IN_A_INPUT));
+        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(32.f, inY)), module, BlankModule::IN_B_INPUT));
 
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(jackXB, outY)), module, BlankModule::OUT_B_OUTPUT));
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(ctrlXB, outY)), module, BlankModule::TRIG_B_OUTPUT));
+        // OUT jacks
+        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(12.f, outY)), module, BlankModule::OUT_A_OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(21.f, outY)), module, BlankModule::TRIG_A_OUTPUT));
+
+        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(32.f, outY)), module, BlankModule::OUT_B_OUTPUT));
+        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(41.f, outY)), module, BlankModule::TRIG_B_OUTPUT));
+
+        // Title (optional; keep if your SVG doesn't include it)
+        {
+            auto* label = createWidget<Label>(mm2px(Vec(13.5f, 25.f)));
+            label->text = "thereelpeet";
+            label->color = nvgRGB(0x27, 0x27, 0x27);
+            addChild(label);
+        }
     }
 };
 
