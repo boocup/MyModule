@@ -33,21 +33,20 @@ struct BlankModule : Module {
         OUTPUTS_LEN
     };
     enum LightId {
+        RUN_A_LIGHT,
+        RUN_B_LIGHT,
         LIGHTS_LEN
     };
 
-    // tempo visualization (0..1)
     float vizTempoA = 0.f;
     float vizTempoB = 0.f;
 
-    // loop A
     bool  runningA = false;
     int   stepA = 0;
     float timerA = 0.f;
     float trigTimerA = 0.f;
     float seqA[16];
 
-    // loop B
     bool  runningB = false;
     int   stepB = 0;
     float timerB = 0.f;
@@ -76,6 +75,9 @@ struct BlankModule : Module {
         configOutput(OUT_B_OUTPUT,  "CV B");
         configOutput(TRIG_B_OUTPUT, "Trigger B");
 
+        configLight(RUN_A_LIGHT, "Lane A running");
+        configLight(RUN_B_LIGHT, "Lane B running");
+
         for (int i = 0; i < 16; i++) {
             seqA[i] = random::uniform() * 5.f;
             seqB[i] = random::uniform() * 5.f;
@@ -103,11 +105,9 @@ struct BlankModule : Module {
         if (randTrig.process(randVal))
             randomize(seq);
 
-        // tempo mapping: -5..+5V -> 1.0..0.1s
         float norm = clamp((inV + 5.f) / 10.f, 0.f, 1.f);
         float stepTime = 1.0f - 0.9f * norm;
 
-        // tempo indicator shows speed (norm)
         viz = 0.85f * norm + 0.15f * viz;
 
         outCV = 0.f;
@@ -123,7 +123,7 @@ struct BlankModule : Module {
             if (timer >= stepTime) {
                 timer -= stepTime;
                 step = (step + 1) % length;
-                trigTimer = 0.01f; // 10ms
+                trigTimer = 0.01f;
             }
             outCV = seq[step];
         } else {
@@ -143,12 +143,12 @@ struct BlankModule : Module {
         int lenA = (int) std::round(params[LENGTH_A_PARAM].getValue());
         int lenB = (int) std::round(params[LENGTH_B_PARAM].getValue());
 
-        float outA = 0.f, trigA = 0.f;
-        float outB = 0.f, trigB = 0.f;
+        float outA = 0.f, trigAout = 0.f;
+        float outB = 0.f, trigBout = 0.f;
 
         processLane(runningA, stepA, timerA, trigTimerA,
                     inA, vizTempoA, seqA, lenA,
-                    outA, trigA,
+                    outA, trigAout,
                     onA, randA,
                     params[BUTTON_A_PARAM].getValue(),
                     params[RAND_A_PARAM].getValue(),
@@ -156,16 +156,19 @@ struct BlankModule : Module {
 
         processLane(runningB, stepB, timerB, trigTimerB,
                     inB, vizTempoB, seqB, lenB,
-                    outB, trigB,
+                    outB, trigBout,
                     onB, randB,
                     params[BUTTON_B_PARAM].getValue(),
                     params[RAND_B_PARAM].getValue(),
                     args);
 
         outputs[OUT_A_OUTPUT].setVoltage(outA);
-        outputs[TRIG_A_OUTPUT].setVoltage(trigA);
+        outputs[TRIG_A_OUTPUT].setVoltage(trigAout);
         outputs[OUT_B_OUTPUT].setVoltage(outB);
-        outputs[TRIG_B_OUTPUT].setVoltage(trigB);
+        outputs[TRIG_B_OUTPUT].setVoltage(trigBout);
+
+        lights[RUN_A_LIGHT].setBrightness(runningA ? 1.f : 0.f);
+        lights[RUN_B_LIGHT].setBrightness(runningB ? 1.f : 0.f);
     }
 };
 
@@ -175,7 +178,7 @@ struct BlankModule : Module {
 
 struct VerticalTempoMeter : TransparentWidget {
     BlankModule* module = nullptr;
-    bool isB = false; // false=A, true=B
+    bool isB = false;
 
     void draw(const DrawArgs& args) override {
         if (!module)
@@ -187,13 +190,11 @@ struct VerticalTempoMeter : TransparentWidget {
         NVGcontext* vg = args.vg;
         Vec size = box.size;
 
-        // background
         nvgBeginPath(vg);
         nvgRoundedRect(vg, 0, 0, size.x, size.y, 2);
         nvgFillColor(vg, nvgRGBA(0, 0, 0, 70));
         nvgFill(vg);
 
-        // fill bottom->top
         float filledH = size.y * level;
         float y = size.y - filledH;
 
@@ -212,7 +213,6 @@ struct VerticalTempoMeter : TransparentWidget {
             nvgFill(vg);
         }
 
-        // border
         nvgBeginPath(vg);
         nvgRoundedRect(vg, 0.5, 0.5, size.x - 1, size.y - 1, 2);
         nvgStrokeColor(vg, nvgRGBA(200, 255, 255, 160));
@@ -230,39 +230,34 @@ struct BlankModuleWidget : ModuleWidget {
         setModule(module);
         setPanel(createPanel(asset::plugin(pluginInstance, "res/Blank.svg")));
 
-        // Screws
         addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, 0)));
         addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
         addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
         addChild(createWidget<ThemedScrew>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-        // columns (mm)
         const float colA = 21.f;
         const float colB = 41.f;
 
-        // rows (mm)
-        const float onY   = 36.f;
-        const float randY = 48.f;
-        const float knobY = 60.f;
+        const float onY   = 26.f;
+        const float randY = 38.f;
+        const float knobY = 50.f;
 
-        // Spacing tweaks you asked for:
-        const float meterY = 80.f;  // more gap below knobs
-        const float inY    = 94.f;  // more gap below meters
-        const float outY   = 116.f; // keep outputs comfortably below inputs
+        const float meterY = 70.f;
+        const float inY    = 84.f;
+        const float outY   = 106.f;
 
-        // ON/OFF
-        addParam(createParamCentered<TL1105>(mm2px(Vec(colA - 6.f, onY)), module, BlankModule::BUTTON_A_PARAM));
-        addParam(createParamCentered<TL1105>(mm2px(Vec(colB - 6.f, onY)), module, BlankModule::BUTTON_B_PARAM));
+        addParam(createParamCentered<LEDButton>(mm2px(Vec(colA - 6.f, onY)), module, BlankModule::BUTTON_A_PARAM));
+        addChild(createLightCentered<MediumLight<GreenLight>>(mm2px(Vec(colA - 6.f, onY)), module, BlankModule::RUN_A_LIGHT));
 
-        // RANDOM
+        addParam(createParamCentered<LEDButton>(mm2px(Vec(colB - 6.f, onY)), module, BlankModule::BUTTON_B_PARAM));
+        addChild(createLightCentered<MediumLight<GreenLight>>(mm2px(Vec(colB - 6.f, onY)), module, BlankModule::RUN_B_LIGHT));
+
         addParam(createParamCentered<TL1105>(mm2px(Vec(colA - 6.f, randY)), module, BlankModule::RAND_A_PARAM));
         addParam(createParamCentered<TL1105>(mm2px(Vec(colB - 6.f, randY)), module, BlankModule::RAND_B_PARAM));
 
-        // LENGTH knobs
         addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(colA - 6.f, knobY)), module, BlankModule::LENGTH_A_PARAM));
         addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(colB - 6.f, knobY)), module, BlankModule::LENGTH_B_PARAM));
 
-        // Tempo meters
         {
             Vec meterSizeMm(4.f, 18.f);
 
@@ -283,20 +278,18 @@ struct BlankModuleWidget : ModuleWidget {
             addChild(mB);
         }
 
-        // IN jacks (tempo CV)
         addInput(createInputCentered<PJ301MPort>(mm2px(Vec(12.f, inY)), module, BlankModule::IN_A_INPUT));
         addInput(createInputCentered<PJ301MPort>(mm2px(Vec(32.f, inY)), module, BlankModule::IN_B_INPUT));
 
-        // OUT jacks
         addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(12.f, outY)), module, BlankModule::OUT_A_OUTPUT));
         addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(21.f, outY)), module, BlankModule::TRIG_A_OUTPUT));
 
         addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(32.f, outY)), module, BlankModule::OUT_B_OUTPUT));
         addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(41.f, outY)), module, BlankModule::TRIG_B_OUTPUT));
 
-        // Title (optional; keep if your SVG doesn't include it)
+        // LABEL moved further up
         {
-            auto* label = createWidget<Label>(mm2px(Vec(13.5f, 25.f)));
+            auto* label = createWidget<Label>(mm2px(Vec(13.5f, 10.f)));
             label->text = "thereelpeet";
             label->color = nvgRGB(0x27, 0x27, 0x27);
             addChild(label);
