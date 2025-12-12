@@ -238,8 +238,8 @@ struct BlankModuleWidget : ModuleWidget {
         const float colA = 21.f;
         const float colB = 41.f;
 
-        const float onY   = 26.f;
-        const float randY = 38.f;
+        const float onY   = 20.f;
+        const float randY = 32.f;
         const float knobY = 50.f;
 
         const float meterY = 70.f;
@@ -287,13 +287,6 @@ struct BlankModuleWidget : ModuleWidget {
         addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(32.f, outY)), module, BlankModule::OUT_B_OUTPUT));
         addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(41.f, outY)), module, BlankModule::TRIG_B_OUTPUT));
 
-        // LABEL moved further up
-        {
-            auto* label = createWidget<Label>(mm2px(Vec(13.5f, 10.f)));
-            label->text = "thereelpeet";
-            label->color = nvgRGB(0x27, 0x27, 0x27);
-            addChild(label);
-        }
     }
 };
 
