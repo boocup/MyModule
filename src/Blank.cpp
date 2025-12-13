@@ -246,23 +246,27 @@ struct BlankModuleWidget : ModuleWidget {
         const float inY    = 80.f;
         const float outY   = 95.f;
 
-        addParam(createParamCentered<LEDButton>(mm2px(Vec(colA - 6.f, onY)), module, BlankModule::BUTTON_A_PARAM));
-        addChild(createLightCentered<MediumLight<GreenLight>>(mm2px(Vec(colA - 6.f, onY)), module, BlankModule::RUN_A_LIGHT));
+        const float outDX = 4.5f;
+        const float laneAX = colA - 7.f;
+        const float laneBX = colB - 4.5f;
 
-        addParam(createParamCentered<LEDButton>(mm2px(Vec(colB - 6.f, onY)), module, BlankModule::BUTTON_B_PARAM));
-        addChild(createLightCentered<MediumLight<GreenLight>>(mm2px(Vec(colB - 6.f, onY)), module, BlankModule::RUN_B_LIGHT));
+        addParam(createParamCentered<LEDButton>(mm2px(Vec(colA - 7.f, onY)), module, BlankModule::BUTTON_A_PARAM));
+        addChild(createLightCentered<MediumLight<GreenLight>>(mm2px(Vec(colA - 7.f, onY)), module, BlankModule::RUN_A_LIGHT));
 
-        addParam(createParamCentered<TL1105>(mm2px(Vec(colA - 6.f, randY)), module, BlankModule::RAND_A_PARAM));
-        addParam(createParamCentered<TL1105>(mm2px(Vec(colB - 6.f, randY)), module, BlankModule::RAND_B_PARAM));
+        addParam(createParamCentered<LEDButton>(mm2px(Vec(colB - 4.5f, onY)), module, BlankModule::BUTTON_B_PARAM));
+        addChild(createLightCentered<MediumLight<GreenLight>>(mm2px(Vec(colB - 4.5f, onY)), module, BlankModule::RUN_B_LIGHT));
 
-        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(colA - 6.f, knobY)), module, BlankModule::LENGTH_A_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(colB - 6.f, knobY)), module, BlankModule::LENGTH_B_PARAM));
+        addParam(createParamCentered<TL1105>(mm2px(Vec(colA - 7.f, randY)), module, BlankModule::RAND_A_PARAM));
+        addParam(createParamCentered<TL1105>(mm2px(Vec(colB - 4.5f, randY)), module, BlankModule::RAND_B_PARAM));
+
+        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(colA - 7.f, knobY)), module, BlankModule::LENGTH_A_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(colB - 4.5f, knobY)), module, BlankModule::LENGTH_B_PARAM));
 
         {
             Vec meterSizeMm(4.f, 18.f);
 
             auto* mA = createWidget<VerticalTempoMeter>(
-                mm2px(Vec(colA - 6.f - meterSizeMm.x * 0.5f, meterY - meterSizeMm.y * 0.5f))
+                mm2px(Vec(colA - 7.f - meterSizeMm.x * 0.5f, meterY - meterSizeMm.y * 0.5f))
             );
             mA->box.size = mm2px(meterSizeMm);
             mA->module = module;
@@ -270,7 +274,7 @@ struct BlankModuleWidget : ModuleWidget {
             addChild(mA);
 
             auto* mB = createWidget<VerticalTempoMeter>(
-                mm2px(Vec(colB - 6.f - meterSizeMm.x * 0.5f, meterY - meterSizeMm.y * 0.5f))
+                mm2px(Vec(colB - 4.5f - meterSizeMm.x * 0.5f, meterY - meterSizeMm.y * 0.5f))
             );
             mB->box.size = mm2px(meterSizeMm);
             mB->module = module;
@@ -278,14 +282,25 @@ struct BlankModuleWidget : ModuleWidget {
             addChild(mB);
         }
 
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(15.f, inY)), module, BlankModule::IN_A_INPUT));
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(35.f, inY)), module, BlankModule::IN_B_INPUT));
+        addInput(createInputCentered<PJ301MPort>(
+            mm2px(Vec(laneAX, inY)), module, BlankModule::IN_A_INPUT));
 
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(12.f, outY)), module, BlankModule::OUT_A_OUTPUT));
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(21.f, outY)), module, BlankModule::TRIG_A_OUTPUT));
+        addInput(createInputCentered<PJ301MPort>(
+            mm2px(Vec(laneBX, inY)), module, BlankModule::IN_B_INPUT));
 
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(32.f, outY)), module, BlankModule::OUT_B_OUTPUT));
-        addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(41.f, outY)), module, BlankModule::TRIG_B_OUTPUT));
+        // Lane A
+        addOutput(createOutputCentered<PJ301MPort>(
+            mm2px(Vec(laneAX - outDX, outY)), module, BlankModule::OUT_A_OUTPUT));
+
+        addOutput(createOutputCentered<PJ301MPort>(
+            mm2px(Vec(laneAX + outDX, outY)), module, BlankModule::TRIG_A_OUTPUT));
+
+        // Lane B
+        addOutput(createOutputCentered<PJ301MPort>(
+            mm2px(Vec(laneBX - outDX, outY)), module, BlankModule::OUT_B_OUTPUT));
+
+        addOutput(createOutputCentered<PJ301MPort>(
+            mm2px(Vec(laneBX + outDX, outY)), module, BlankModule::TRIG_B_OUTPUT));
 
     }
 };
