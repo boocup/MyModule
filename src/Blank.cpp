@@ -23,6 +23,10 @@ struct BlankModule : Module {
     enum InputId {
         IN_A_INPUT,
         IN_B_INPUT,
+
+        RNDTRIG_A_INPUT,
+        RNDTRIG_B_INPUT,
+
         INPUTS_LEN
     };
     enum OutputId {
@@ -53,8 +57,8 @@ struct BlankModule : Module {
     float trigTimerB = 0.f;
     float seqB[16];
 
-    dsp::SchmittTrigger onA, randA;
-    dsp::SchmittTrigger onB, randB;
+    dsp::SchmittTrigger onA, randA, randInA;
+    dsp::SchmittTrigger onB, randB, randInB;
 
     BlankModule() {
         config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
@@ -69,6 +73,8 @@ struct BlankModule : Module {
 
         configInput(IN_A_INPUT, "Tempo CV A");
         configInput(IN_B_INPUT, "Tempo CV B");
+        configInput(RNDTRIG_A_INPUT, "Random trigger A");
+        configInput(RNDTRIG_B_INPUT, "Random trigger B");
 
         configOutput(OUT_A_OUTPUT,  "CV A");
         configOutput(TRIG_A_OUTPUT, "Trigger A");
@@ -96,13 +102,22 @@ struct BlankModule : Module {
         float& outCV, float& outTrig,
         dsp::SchmittTrigger& onTrig,
         dsp::SchmittTrigger& randTrig,
-        float onVal, float randVal,
+        dsp::SchmittTrigger& randInTrig,
+        float onVal, float randVal, float randInV,
         const ProcessArgs& args
     ) {
         if (onTrig.process(onVal))
             running = !running;
 
+        bool doRand = false;
+
         if (randTrig.process(randVal))
+            doRand = true;
+
+        if (randInTrig.process(randInV))
+            doRand = true;
+
+        if (doRand)
             randomize(seq);
 
         float norm = clamp((inV + 5.f) / 10.f, 0.f, 1.f);
@@ -140,6 +155,9 @@ struct BlankModule : Module {
         float inA = inputs[IN_A_INPUT].isConnected() ? inputs[IN_A_INPUT].getVoltage() : 0.f;
         float inB = inputs[IN_B_INPUT].isConnected() ? inputs[IN_B_INPUT].getVoltage() : 0.f;
 
+        float rndInA = inputs[RNDTRIG_A_INPUT].isConnected() ? inputs[RNDTRIG_A_INPUT].getVoltage() : 0.f;
+        float rndInB = inputs[RNDTRIG_B_INPUT].isConnected() ? inputs[RNDTRIG_B_INPUT].getVoltage() : 0.f;
+
         int lenA = (int) std::round(params[LENGTH_A_PARAM].getValue());
         int lenB = (int) std::round(params[LENGTH_B_PARAM].getValue());
 
@@ -149,17 +167,19 @@ struct BlankModule : Module {
         processLane(runningA, stepA, timerA, trigTimerA,
                     inA, vizTempoA, seqA, lenA,
                     outA, trigAout,
-                    onA, randA,
+                    onA, randA, randInA,
                     params[BUTTON_A_PARAM].getValue(),
                     params[RAND_A_PARAM].getValue(),
+                    rndInA,
                     args);
 
         processLane(runningB, stepB, timerB, trigTimerB,
                     inB, vizTempoB, seqB, lenB,
                     outB, trigBout,
-                    onB, randB,
+                    onB, randB, randInB,
                     params[BUTTON_B_PARAM].getValue(),
                     params[RAND_B_PARAM].getValue(),
+                    rndInB,
                     args);
 
         outputs[OUT_A_OUTPUT].setVoltage(outA);
@@ -281,28 +301,51 @@ struct BlankModuleWidget : ModuleWidget {
             mB->isB = true;
             addChild(mB);
         }
+        // --- Shared lane geometry ---
+        const float laneACenterX = laneAX;
+        const float laneBCenterX = laneBX;
 
-        addInput(createInputCentered<PJ301MPort>(
-            mm2px(Vec(laneAX, inY)), module, BlankModule::IN_A_INPUT));
+        const float cvXOffset = outDX;          // left/right split for the two output jacks
+        const float rndTrigY  = outY + 12.f;    // random trigger input row (under the 1v/O input)
 
-        addInput(createInputCentered<PJ301MPort>(
-            mm2px(Vec(laneBX, inY)), module, BlankModule::IN_B_INPUT));
-
+        // ---------------------------
         // Lane A
+        // ---------------------------
+
+        // tempo CV input (top input for lane)
+        addInput(createInputCentered<PJ301MPort>(
+            mm2px(Vec(laneACenterX, inY)), module, BlankModule::IN_A_INPUT));
+
+        // outputs: CV + Gate (split left/right)
         addOutput(createOutputCentered<PJ301MPort>(
-            mm2px(Vec(laneAX - outDX, outY)), module, BlankModule::OUT_A_OUTPUT));
+            mm2px(Vec(laneACenterX - cvXOffset, outY)), module, BlankModule::OUT_A_OUTPUT));
 
         addOutput(createOutputCentered<PJ301MPort>(
-            mm2px(Vec(laneAX + outDX, outY)), module, BlankModule::TRIG_A_OUTPUT));
+            mm2px(Vec(laneACenterX + cvXOffset, outY)), module, BlankModule::TRIG_A_OUTPUT));
 
+        // random trigger input (centered, under 1v/O input)
+        addInput(createInputCentered<PJ301MPort>(
+            mm2px(Vec(laneACenterX - cvXOffset, rndTrigY)), module, BlankModule::RNDTRIG_A_INPUT));
+
+        // ---------------------------
         // Lane B
+        // ---------------------------
+
+        // tempo CV input
+        addInput(createInputCentered<PJ301MPort>(
+            mm2px(Vec(laneBCenterX, inY)), module, BlankModule::IN_B_INPUT));
+
+        // outputs: CV + Gate
         addOutput(createOutputCentered<PJ301MPort>(
-            mm2px(Vec(laneBX - outDX, outY)), module, BlankModule::OUT_B_OUTPUT));
+            mm2px(Vec(laneBCenterX - cvXOffset, outY)), module, BlankModule::OUT_B_OUTPUT));
 
         addOutput(createOutputCentered<PJ301MPort>(
-            mm2px(Vec(laneBX + outDX, outY)), module, BlankModule::TRIG_B_OUTPUT));
+            mm2px(Vec(laneBCenterX + cvXOffset, outY)), module, BlankModule::TRIG_B_OUTPUT));
 
-    }
-};
+        // random trigger input
+        addInput(createInputCentered<PJ301MPort>(
+            mm2px(Vec(laneBCenterX - cvXOffset, rndTrigY)), module, BlankModule::RNDTRIG_B_INPUT));
+            }
+        };
 
 Model* modelBlank = createModel<BlankModule, BlankModuleWidget>("blank");
