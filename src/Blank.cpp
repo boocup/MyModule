@@ -240,11 +240,11 @@ struct BlankModuleWidget : ModuleWidget {
 
         const float onY   = 20.f;
         const float randY = 32.f;
-        const float knobY = 50.f;
+        const float knobY = 46.f;
 
-        const float meterY = 70.f;
-        const float inY    = 84.f;
-        const float outY   = 106.f;
+        const float meterY = 66.f;
+        const float inY    = 80.f;
+        const float outY   = 95.f;
 
         addParam(createParamCentered<LEDButton>(mm2px(Vec(colA - 6.f, onY)), module, BlankModule::BUTTON_A_PARAM));
         addChild(createLightCentered<MediumLight<GreenLight>>(mm2px(Vec(colA - 6.f, onY)), module, BlankModule::RUN_A_LIGHT));
@@ -278,8 +278,8 @@ struct BlankModuleWidget : ModuleWidget {
             addChild(mB);
         }
 
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(12.f, inY)), module, BlankModule::IN_A_INPUT));
-        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(32.f, inY)), module, BlankModule::IN_B_INPUT));
+        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(15.f, inY)), module, BlankModule::IN_A_INPUT));
+        addInput(createInputCentered<PJ301MPort>(mm2px(Vec(35.f, inY)), module, BlankModule::IN_B_INPUT));
 
         addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(12.f, outY)), module, BlankModule::OUT_A_OUTPUT));
         addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(21.f, outY)), module, BlankModule::TRIG_A_OUTPUT));
