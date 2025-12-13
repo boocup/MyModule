@@ -32,47 +32,19 @@
      showgrid="false" />
   <defs
      id="defs1">
-    <!-- Panel gradient -->
-    <linearGradient
-       id="bgGrad"
-       x1="0"
-       y1="0"
-       x2="0"
-       y2="380"
-       gradientUnits="userSpaceOnUse">
-      <stop
-         offset="0%"
-         stop-color="#ededed"
-         id="stop1" />
-      <stop
-         offset="50%"
-         stop-color="#e2e2e2"
-         id="stop2" />
-      <stop
-         offset="100%"
-         stop-color="#d6d6d6"
-         id="stop3" />
-    </linearGradient>
+  <!-- Panel gradient (slightly darker, more separation) -->
+  <linearGradient id="bgGrad"
+                  x1="0" y1="0"
+                  x2="0" y2="380"
+                  gradientUnits="userSpaceOnUse">
+    <stop offset="0%"   stop-color="#d0d0d0"/>
+    <stop offset="100%" stop-color="#b8b8b8"/>
+  </linearGradient>
     <!-- Clip so hatch only shows inside the two lanes -->
-    <clipPath
-       id="laneClip">
-      <rect
-         x="14"
-         y="0"
-         width="56"
-         height="380"
-         rx="7"
-         ry="7"
-         id="rect3" />
-      <rect
-         x="80"
-         y="0"
-         width="56"
-         height="380"
-         rx="7"
-         ry="7"
-         id="rect4" />
-    </clipPath>
+  <clipPath id="laneClip">
+    <rect x="14" y="12" width="56" height="356" rx="7" ry="7"/>
+    <rect x="80" y="12" width="56" height="356" rx="7" ry="7"/>
+  </clipPath>
   </defs>
   <!-- Main panel background -->
   <rect
@@ -93,27 +65,28 @@
   <!-- Lane A (draw AFTER hatch so it shows up) -->
   <rect
      x="14"
-     y="0"
+     y="12"
      width="56"
-     height="380"
+     height="356"
      rx="7"
      ry="7"
-     fill="#ffffff"
-     opacity="0.22"
+     fill="#f7f7f7"
+     opacity="0.55"
      stroke="#000000"
      stroke-opacity="0.08"
      stroke-width="1"
      id="laneA" />
+
   <!-- Lane B -->
   <rect
      x="80"
-     y="0"
+     y="12"
      width="56"
-     height="380"
+     height="356"
      rx="7"
      ry="7"
-     fill="#ffffff"
-     opacity="0.22"
+     fill="#f7f7f7"
+     opacity="0.55"
      stroke="#000000"
      stroke-opacity="0.08"
      stroke-width="1"
@@ -124,8 +97,8 @@
      y="0"
      width="1"
      height="380"
-     fill="#000000"
-     opacity="0.08"
+    fill="#000000"
+    opacity="0.12"
      id="centerSeam" />
   <!-- ===== Your existing artwork below (UNCHANGED from what you pasted) ===== -->
   <path
