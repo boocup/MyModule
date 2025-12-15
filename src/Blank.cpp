@@ -126,8 +126,6 @@ struct BlankModule : Module {
         float norm = clamp((inV + 5.f) / 10.f, 0.f, 1.f);
         float stepTime = 1.0f - 0.9f * norm;
 
-        viz = 0.85f * norm + 0.15f * viz;
-
         outCV = 0.f;
         outTrig = 0.f;
 
@@ -335,25 +333,6 @@ struct BlankModuleWidget : ModuleWidget {
         addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(colA - 7.f, knobY)), module, BlankModule::LENGTH_A_PARAM));
         addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(colB - 4.5f, knobY)), module, BlankModule::LENGTH_B_PARAM));
 
-        {
-            Vec meterSizeMm(4.f, 18.f);
-
-            auto* mA = createWidget<VerticalTempoMeter>(
-                mm2px(Vec(colA - 7.f - meterSizeMm.x * 0.5f, meterY - meterSizeMm.y * 0.5f))
-            );
-            mA->box.size = mm2px(meterSizeMm);
-            mA->module = module;
-            mA->isB = false;
-            addChild(mA);
-
-            auto* mB = createWidget<VerticalTempoMeter>(
-                mm2px(Vec(colB - 4.5f - meterSizeMm.x * 0.5f, meterY - meterSizeMm.y * 0.5f))
-            );
-            mB->box.size = mm2px(meterSizeMm);
-            mB->module = module;
-            mB->isB = true;
-            addChild(mB);
-        }
         // --- Shared lane geometry ---
         const float laneACenterX = laneAX;
         const float laneBCenterX = laneBX;
