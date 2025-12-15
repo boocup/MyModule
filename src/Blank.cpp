@@ -468,30 +468,17 @@ struct BlankModuleWidget : ModuleWidget {
         }
 
         if (module) {
-            // Lane A BPM display under knob
-            auto* bpmA = new BPMDisplay();
-            bpmA->param = &module->params[BlankModule::BPM_A_PARAM];
-        // BPM knobs (pick positions)
-        // addParam(createParamCentered<RoundBlackKnob>(
-        //     mm2px(Vec(laneAX, bpmKnobY)), module, BlankModule::BPM_A_PARAM));
-        // addParam(createParamCentered<RoundBlackKnob>(
-        //     mm2px(Vec(laneBX, bpmKnobY)), module, BlankModule::BPM_B_PARAM));
+            auto* bpmDispA = new BPMDisplay();
+            bpmDispA->param = &module->params[BlankModule::BPM_A_PARAM];
+            bpmDispA->box.pos  = mm2px(Vec(laneAX - 6.f, bpmKnobY + 4.f));
+            bpmDispA->box.size = mm2px(Vec(12.f, 11.f));
+            addChild(bpmDispA);
 
-            if (module) {
-                // Lane A BPM display under knob
-                auto* bpmA = new BPMDisplay();
-                bpmA->param = &module->params[BlankModule::BPM_A_PARAM];
-                bpmA->box.pos = mm2px(Vec(laneAX - 6.f, bpmKnobY + 4.f));
-                bpmA->box.size = mm2px(Vec(12.f, 11.f));
-                addChild(bpmA);
-
-                // Lane B BPM display under knob
-                auto* bpmB = new BPMDisplay();
-                bpmB->param = &module->params[BlankModule::BPM_B_PARAM];
-                bpmB->box.pos = mm2px(Vec(laneBX - 6.f, bpmKnobY + 4.f));
-                bpmB->box.size = mm2px(Vec(12.f, 11.f));
-                addChild(bpmB);
-            }
+            auto* bpmDispB = new BPMDisplay();
+            bpmDispB->param = &module->params[BlankModule::BPM_B_PARAM];
+            bpmDispB->box.pos  = mm2px(Vec(laneBX - 6.f, bpmKnobY + 4.f));
+            bpmDispB->box.size = mm2px(Vec(12.f, 11.f));
+            addChild(bpmDispB);
         }
     }
 };
