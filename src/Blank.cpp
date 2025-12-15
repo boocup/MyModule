@@ -161,14 +161,13 @@ struct BlankModule : Module {
 
 
     void process(const ProcessArgs& args) override {
-        float inA = inputs[IN_A_INPUT].isConnected() ? inputs[IN_A_INPUT].getVoltage() : 0.f;
-        float inB = inputs[IN_B_INPUT].isConnected() ? inputs[IN_B_INPUT].getVoltage() : 0.f;
-
         float rndInA = inputs[RNDTRIG_A_INPUT].isConnected() ? inputs[RNDTRIG_A_INPUT].getVoltage() : 0.f;
         float rndInB = inputs[RNDTRIG_B_INPUT].isConnected() ? inputs[RNDTRIG_B_INPUT].getVoltage() : 0.f;
 
         lenA = (int) std::round(params[LENGTH_A_PARAM].getValue());
         lenB = (int) std::round(params[LENGTH_B_PARAM].getValue());
+        lenA = clamp(lenA, 1, 16);
+        lenB = clamp(lenB, 1, 16);
 
         float outA = 0.f, trigAout = 0.f;
         float outB = 0.f, trigBout = 0.f;
@@ -349,7 +348,7 @@ struct BlankModuleWidget : ModuleWidget {
         const float randY = 32.f;
         const float knobY = 46.f;
 
-        const float meterY = 66.f;
+        //const float meterY = 66.f;
         const float inY    = 80.f;
         const float outY   = 95.f;
 
@@ -416,7 +415,7 @@ struct BlankModuleWidget : ModuleWidget {
 
         if (module) {
             const float dispW = 12.f;
-            const float dispH = 8.f;
+            //const float dispH = 8.f;
             const float labelY = 50.f;   // <-- set this to where the old "Len" label was
 
             auto* lenADisplay = new LengthDisplay;
@@ -432,13 +431,6 @@ struct BlankModuleWidget : ModuleWidget {
             addChild(lenBDisplay);
         }
 
-        // BPM knobs (pick positions)
-        const float bpmKnobY = 66.f;
-        addParam(createParamCentered<RoundBlackKnob>(
-            mm2px(Vec(laneAX, bpmKnobY)), module, BlankModule::BPM_A_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>(
-            mm2px(Vec(laneBX, bpmKnobY)), module, BlankModule::BPM_B_PARAM));
-
         if (module) {
             // Lane A BPM display under knob
             auto* bpmA = new BPMDisplay();
@@ -450,30 +442,21 @@ struct BlankModuleWidget : ModuleWidget {
         addParam(createParamCentered<RoundBlackKnob>(
             mm2px(Vec(laneBX, bpmKnobY)), module, BlankModule::BPM_B_PARAM));
 
-        if (module) {
-            // Lane A BPM display under knob
-            auto* bpmA = new BPMDisplay();
-            bpmA->param = &module->params[BlankModule::BPM_A_PARAM];
-            bpmA->box.pos = mm2px(Vec(laneAX - 6.f, bpmKnobY + 4.f));
-            bpmA->box.size = mm2px(Vec(12.f, 11.f));
-            addChild(bpmA);
+            if (module) {
+                // Lane A BPM display under knob
+                auto* bpmA = new BPMDisplay();
+                bpmA->param = &module->params[BlankModule::BPM_A_PARAM];
+                bpmA->box.pos = mm2px(Vec(laneAX - 6.f, bpmKnobY + 4.f));
+                bpmA->box.size = mm2px(Vec(12.f, 11.f));
+                addChild(bpmA);
 
-            // Lane B BPM display under knob
-            auto* bpmB = new BPMDisplay();
-            bpmB->param = &module->params[BlankModule::BPM_B_PARAM];
-            bpmB->box.pos = mm2px(Vec(laneBX - 6.f, bpmKnobY + 4.f));
-            bpmB->box.size = mm2px(Vec(12.f, 11.f));
-            addChild(bpmB);
-        }
-            bpmA->box.size = mm2px(Vec(12.f, 11.f));
-            addChild(bpmA);
-
-            // Lane B BPM display under knob
-            auto* bpmB = new BPMDisplay();
-            bpmB->param = &module->params[BlankModule::BPM_B_PARAM];
-            bpmB->box.pos  = mm2px(Vec(laneBX - 6.f, bpmKnobY + 8.f)); // tweak
-            bpmB->box.size = mm2px(Vec(12.f, 11.f));
-            addChild(bpmB);
+                // Lane B BPM display under knob
+                auto* bpmB = new BPMDisplay();
+                bpmB->param = &module->params[BlankModule::BPM_B_PARAM];
+                bpmB->box.pos = mm2px(Vec(laneBX - 6.f, bpmKnobY + 4.f));
+                bpmB->box.size = mm2px(Vec(12.f, 11.f));
+                addChild(bpmB);
+            }
         }
     }
 };
