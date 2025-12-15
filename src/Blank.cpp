@@ -175,6 +175,18 @@ struct BlankModule : Module {
         float bpmA = params[BPM_A_PARAM].getValue();
         float bpmB = params[BPM_B_PARAM].getValue();
 
+        // If CV connected, override knob
+        if (inputs[IN_A_INPUT].isConnected()) {
+            // Map 0–10V -> 20–300 BPM (tweak to taste)
+            float v = clamp(inputs[IN_A_INPUT].getVoltage(), 0.f, 10.f);
+            bpmA = 20.f + (v / 10.f) * (300.f - 20.f);
+        }
+
+        if (inputs[IN_B_INPUT].isConnected()) {
+            float v = clamp(inputs[IN_B_INPUT].getVoltage(), 0.f, 10.f);
+            bpmB = 20.f + (v / 10.f) * (300.f - 20.f);
+}
+
         processLane(runningA, stepA, timerA, trigTimerA,
                     bpmA, seqA, lenA,
                     outA, trigAout,
@@ -349,8 +361,8 @@ struct BlankModuleWidget : ModuleWidget {
         const float knobY = 46.f;
 
         //const float meterY = 66.f;
-        const float inY    = 80.f;
-        const float outY   = 95.f;
+        const float inY  = 83.f;
+        const float outY = 99.f;
 
         const float outDX = 4.5f;
         const float laneAX = colA - 7.f;
