@@ -18,6 +18,9 @@ struct BlankModule : Module {
         RAND_B_PARAM,
         LENGTH_B_PARAM,
 
+        BPM_A_PARAM,
+        BPM_B_PARAM,
+
         PARAMS_LEN
     };
     enum InputId {
@@ -74,6 +77,9 @@ struct BlankModule : Module {
         configParam(RAND_B_PARAM,   0.f, 1.f, 0.f, "Randomize B");
         configParam(LENGTH_B_PARAM, 2.f, 16.f, 3.f, "Length B");
 
+        configParam(BPM_A_PARAM, 20.f, 300.f, 120.f, "BPM A");
+        configParam(BPM_B_PARAM, 20.f, 300.f, 120.f, "BPM B");
+
         configInput(IN_A_INPUT, "Tempo CV A");
         configInput(IN_B_INPUT, "Tempo CV B");
         configInput(RNDTRIG_A_INPUT, "Random trigger A");
@@ -100,7 +106,7 @@ struct BlankModule : Module {
 
     void processLane(
         bool& running, int& step, float& timer, float& trigTimer,
-        float inV, float& viz,
+        float bpm,
         float* seq, int length,
         float& outCV, float& outTrig,
         dsp::SchmittTrigger& onTrig,
@@ -113,18 +119,18 @@ struct BlankModule : Module {
             running = !running;
 
         bool doRand = false;
-
         if (randTrig.process(randVal))
             doRand = true;
-
         if (randInTrig.process(randInV))
             doRand = true;
-
         if (doRand)
             randomize(seq);
 
-        float norm = clamp((inV + 5.f) / 10.f, 0.f, 1.f);
-        float stepTime = 1.0f - 0.9f * norm;
+        // safe clamp
+        bpm = clamp(bpm, 20.f, 300.f);
+
+        // one step per beat
+        float stepTime = 60.f / bpm;
 
         outCV = 0.f;
         outTrig = 0.f;
@@ -152,6 +158,8 @@ struct BlankModule : Module {
             outTrig = 10.f;
     }
 
+
+
     void process(const ProcessArgs& args) override {
         float inA = inputs[IN_A_INPUT].isConnected() ? inputs[IN_A_INPUT].getVoltage() : 0.f;
         float inB = inputs[IN_B_INPUT].isConnected() ? inputs[IN_B_INPUT].getVoltage() : 0.f;
@@ -165,8 +173,11 @@ struct BlankModule : Module {
         float outA = 0.f, trigAout = 0.f;
         float outB = 0.f, trigBout = 0.f;
 
+        float bpmA = params[BPM_A_PARAM].getValue();
+        float bpmB = params[BPM_B_PARAM].getValue();
+
         processLane(runningA, stepA, timerA, trigTimerA,
-                    inA, vizTempoA, seqA, lenA,
+                    bpmA, seqA, lenA,
                     outA, trigAout,
                     onA, randA, randInA,
                     params[BUTTON_A_PARAM].getValue(),
@@ -175,7 +186,7 @@ struct BlankModule : Module {
                     args);
 
         processLane(runningB, stepB, timerB, trigTimerB,
-                    inB, vizTempoB, seqB, lenB,
+                    bpmB, seqB, lenB,
                     outB, trigBout,
                     onB, randB, randInB,
                     params[BUTTON_B_PARAM].getValue(),
@@ -269,6 +280,31 @@ struct LengthDisplay : TransparentWidget {
                 box.size.x * 0.5f,
                 box.size.y * 0.65f,   // was 0.75
                 "Steps", nullptr);
+    }
+};
+
+struct BPMDisplay : TransparentWidget {
+    Param* param = nullptr;
+
+    void draw(const DrawArgs& args) override {
+        if (!param) return;
+
+        int bpm = (int) std::round(param->getValue());
+
+        nvgFontFaceId(args.vg, APP->window->uiFont->handle);
+        nvgFillColor(args.vg, nvgRGB(0x00, 0x00, 0x00));
+        nvgTextAlign(args.vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+
+        char buf[8];
+        snprintf(buf, sizeof(buf), "%d", bpm);
+
+        // number
+        nvgFontSize(args.vg, 9.f);
+        nvgText(args.vg, box.size.x * 0.5f, box.size.y * 0.35f, buf, nullptr);
+
+        // label
+        nvgFontSize(args.vg, 8.f);
+        nvgText(args.vg, box.size.x * 0.5f, box.size.y * 0.65f, "BPM", nullptr);
     }
 };
 
@@ -394,6 +430,50 @@ struct BlankModuleWidget : ModuleWidget {
             lenBDisplay->box.size = mm2px(Vec(12.f, 11.f));
             lenBDisplay->value    = &module->lenB;
             addChild(lenBDisplay);
+        }
+
+        // BPM knobs (pick positions)
+        const float bpmKnobY = 66.f;
+        addParam(createParamCentered<RoundBlackKnob>(
+            mm2px(Vec(laneAX, bpmKnobY)), module, BlankModule::BPM_A_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(
+            mm2px(Vec(laneBX, bpmKnobY)), module, BlankModule::BPM_B_PARAM));
+
+        if (module) {
+            // Lane A BPM display under knob
+            auto* bpmA = new BPMDisplay();
+            bpmA->param = &module->params[BlankModule::BPM_A_PARAM];
+        // BPM knobs (pick positions)
+        const float bpmKnobY = 66.f;
+        addParam(createParamCentered<RoundBlackKnob>(
+            mm2px(Vec(laneAX, bpmKnobY)), module, BlankModule::BPM_A_PARAM));
+        addParam(createParamCentered<RoundBlackKnob>(
+            mm2px(Vec(laneBX, bpmKnobY)), module, BlankModule::BPM_B_PARAM));
+
+        if (module) {
+            // Lane A BPM display under knob
+            auto* bpmA = new BPMDisplay();
+            bpmA->param = &module->params[BlankModule::BPM_A_PARAM];
+            bpmA->box.pos = mm2px(Vec(laneAX - 6.f, bpmKnobY + 4.f));
+            bpmA->box.size = mm2px(Vec(12.f, 11.f));
+            addChild(bpmA);
+
+            // Lane B BPM display under knob
+            auto* bpmB = new BPMDisplay();
+            bpmB->param = &module->params[BlankModule::BPM_B_PARAM];
+            bpmB->box.pos = mm2px(Vec(laneBX - 6.f, bpmKnobY + 4.f));
+            bpmB->box.size = mm2px(Vec(12.f, 11.f));
+            addChild(bpmB);
+        }
+            bpmA->box.size = mm2px(Vec(12.f, 11.f));
+            addChild(bpmA);
+
+            // Lane B BPM display under knob
+            auto* bpmB = new BPMDisplay();
+            bpmB->param = &module->params[BlankModule::BPM_B_PARAM];
+            bpmB->box.pos  = mm2px(Vec(laneBX - 6.f, bpmKnobY + 8.f)); // tweak
+            bpmB->box.size = mm2px(Vec(12.f, 11.f));
+            addChild(bpmB);
         }
     }
 };
