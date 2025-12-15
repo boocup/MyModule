@@ -175,16 +175,16 @@ struct BlankModule : Module {
         float bpmA = params[BPM_A_PARAM].getValue();
         float bpmB = params[BPM_B_PARAM].getValue();
 
-        // If CV connected, override knob
         if (inputs[IN_A_INPUT].isConnected()) {
-            // Map 0–10V -> 20–300 BPM (tweak to taste)
             float v = clamp(inputs[IN_A_INPUT].getVoltage(), 0.f, 10.f);
             bpmA = 20.f + (v / 10.f) * (300.f - 20.f);
+            params[BPM_A_PARAM].setValue(bpmA);   // <-- this is what makes the knob move
         }
 
         if (inputs[IN_B_INPUT].isConnected()) {
             float v = clamp(inputs[IN_B_INPUT].getVoltage(), 0.f, 10.f);
             bpmB = 20.f + (v / 10.f) * (300.f - 20.f);
+            params[BPM_B_PARAM].setValue(bpmB);
 }
 
         processLane(runningA, stepA, timerA, trigTimerA,
@@ -338,6 +338,20 @@ struct LengthParamDisplay : TransparentWidget {
         nvgText(args.vg, box.size.x * 0.5f, box.size.y * 0.5f, buf, nullptr);
     }
 };
+struct LockOnCableKnob : RoundBlackKnob {
+    BlankModule* m = nullptr;
+    int inputId = -1;
+
+    bool locked() const {
+        return (m && inputId >= 0 && m->inputs[inputId].isConnected());
+    }
+
+    // void onChange(const event::Change& e) override {
+    //     if (locked())
+    //         return; // ignore user edits while CV is plugged
+    //     RoundBlackKnob::onChange(e);
+    // }
+};
 
 // =======================
 //   WIDGET LAYOUT
@@ -359,6 +373,7 @@ struct BlankModuleWidget : ModuleWidget {
         const float onY   = 20.f;
         const float randY = 32.f;
         const float knobY = 46.f;
+        const float bpmKnobY = 66.f;
 
         //const float meterY = 66.f;
         const float inY  = 83.f;
@@ -379,6 +394,15 @@ struct BlankModuleWidget : ModuleWidget {
 
         addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(colA - 7.f, knobY)), module, BlankModule::LENGTH_A_PARAM));
         addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(colB - 4.5f, knobY)), module, BlankModule::LENGTH_B_PARAM));
+        auto* kbA = createParamCentered<LockOnCableKnob>(mm2px(Vec(laneAX, bpmKnobY)), module, BlankModule::BPM_A_PARAM);
+        kbA->m = module;
+        kbA->inputId = BlankModule::IN_A_INPUT;
+        addParam(kbA);
+
+        auto* kbB = createParamCentered<LockOnCableKnob>(mm2px(Vec(laneBX, bpmKnobY)), module, BlankModule::BPM_B_PARAM);
+        kbB->m = module;
+        kbB->inputId = BlankModule::IN_B_INPUT;
+        addParam(kbB);        
 
         // --- Shared lane geometry ---
         const float laneACenterX = laneAX;
@@ -448,11 +472,10 @@ struct BlankModuleWidget : ModuleWidget {
             auto* bpmA = new BPMDisplay();
             bpmA->param = &module->params[BlankModule::BPM_A_PARAM];
         // BPM knobs (pick positions)
-        const float bpmKnobY = 66.f;
-        addParam(createParamCentered<RoundBlackKnob>(
-            mm2px(Vec(laneAX, bpmKnobY)), module, BlankModule::BPM_A_PARAM));
-        addParam(createParamCentered<RoundBlackKnob>(
-            mm2px(Vec(laneBX, bpmKnobY)), module, BlankModule::BPM_B_PARAM));
+        // addParam(createParamCentered<RoundBlackKnob>(
+        //     mm2px(Vec(laneAX, bpmKnobY)), module, BlankModule::BPM_A_PARAM));
+        // addParam(createParamCentered<RoundBlackKnob>(
+        //     mm2px(Vec(laneBX, bpmKnobY)), module, BlankModule::BPM_B_PARAM));
 
             if (module) {
                 // Lane A BPM display under knob
