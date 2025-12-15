@@ -57,6 +57,9 @@ struct BlankModule : Module {
     float trigTimerB = 0.f;
     float seqB[16];
 
+    int lenA=2;
+    int lenB=2;
+
     dsp::SchmittTrigger onA, randA, randInA;
     dsp::SchmittTrigger onB, randB, randInB;
 
@@ -158,8 +161,8 @@ struct BlankModule : Module {
         float rndInA = inputs[RNDTRIG_A_INPUT].isConnected() ? inputs[RNDTRIG_A_INPUT].getVoltage() : 0.f;
         float rndInB = inputs[RNDTRIG_B_INPUT].isConnected() ? inputs[RNDTRIG_B_INPUT].getVoltage() : 0.f;
 
-        int lenA = (int) std::round(params[LENGTH_A_PARAM].getValue());
-        int lenB = (int) std::round(params[LENGTH_B_PARAM].getValue());
+        lenA = (int) std::round(params[LENGTH_A_PARAM].getValue());
+        lenB = (int) std::round(params[LENGTH_B_PARAM].getValue());
 
         float outA = 0.f, trigAout = 0.f;
         float outB = 0.f, trigBout = 0.f;
@@ -238,6 +241,44 @@ struct VerticalTempoMeter : TransparentWidget {
         nvgStrokeColor(vg, nvgRGBA(200, 255, 255, 160));
         nvgStrokeWidth(vg, 1);
         nvgStroke(vg);
+    }
+};
+
+struct LengthDisplay : TransparentWidget {
+    int* value = nullptr;
+
+    void draw(const DrawArgs& args) override {
+        if (!value)
+            return;
+
+        nvgFontSize(args.vg, 12.f);
+        nvgFontFaceId(args.vg, APP->window->uiFont->handle);
+        nvgFillColor(args.vg, nvgRGB(0x00, 0x00, 0x00));
+        nvgTextAlign(args.vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+
+        char buf[4];
+        snprintf(buf, sizeof(buf), "%d", *value);
+        nvgText(args.vg, box.size.x * 0.5f, box.size.y * 0.5f, buf, nullptr);
+    }
+};
+
+struct LengthParamDisplay : TransparentWidget {
+    Module* module = nullptr;
+    int paramId = -1;
+
+    void draw(const DrawArgs& args) override {
+        if (!module) return;
+
+        int v = (int) std::round(module->params[paramId].getValue());
+
+        nvgFontSize(args.vg, 11.f);
+        nvgFontFaceId(args.vg, APP->window->uiFont->handle);
+        nvgFillColor(args.vg, nvgRGB(0xcc, 0x33, 0x33));
+        nvgTextAlign(args.vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+
+        char buf[4];
+        snprintf(buf, sizeof(buf), "%d", v);
+        nvgText(args.vg, box.size.x * 0.5f, box.size.y * 0.5f, buf, nullptr);
     }
 };
 
@@ -345,7 +386,25 @@ struct BlankModuleWidget : ModuleWidget {
         // random trigger input
         addInput(createInputCentered<PJ301MPort>(
             mm2px(Vec(laneBCenterX - cvXOffset, rndTrigY)), module, BlankModule::RNDTRIG_B_INPUT));
-            }
-        };
+
+        if (module) {
+            const float dispW = 12.f;
+            const float dispH = 8.f;
+            const float labelY = 50.f;   // <-- set this to where the old "Len" label was
+
+            auto* lenADisplay = new LengthDisplay;
+            lenADisplay->box.pos  = mm2px(Vec(laneAX - dispW * 0.5f, labelY));
+            lenADisplay->box.size = mm2px(Vec(dispW, dispH));
+            lenADisplay->value    = &module->lenA;
+            addChild(lenADisplay);
+
+            auto* lenBDisplay = new LengthDisplay;
+            lenBDisplay->box.pos  = mm2px(Vec(laneBX - dispW * 0.5f, labelY));
+            lenBDisplay->box.size = mm2px(Vec(dispW, dispH));
+            lenBDisplay->value    = &module->lenB;
+            addChild(lenBDisplay);
+        }
+    }
+};
 
 Model* modelBlank = createModel<BlankModule, BlankModuleWidget>("blank");
