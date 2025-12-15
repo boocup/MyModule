@@ -251,14 +251,26 @@ struct LengthDisplay : TransparentWidget {
         if (!value)
             return;
 
-        nvgFontSize(args.vg, 12.f);
         nvgFontFaceId(args.vg, APP->window->uiFont->handle);
         nvgFillColor(args.vg, nvgRGB(0x00, 0x00, 0x00));
         nvgTextAlign(args.vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
 
         char buf[4];
         snprintf(buf, sizeof(buf), "%d", *value);
-        nvgText(args.vg, box.size.x * 0.5f, box.size.y * 0.5f, buf, nullptr);
+
+        // number
+        nvgFontSize(args.vg, 10.f);   // was 9
+        nvgText(args.vg,
+                box.size.x * 0.5f,
+                box.size.y * 0.35f,
+                buf, nullptr);
+
+        // label (moved up)
+        nvgFontSize(args.vg, 9.f);   // was 8
+        nvgText(args.vg,
+                box.size.x * 0.5f,
+                box.size.y * 0.65f,   // was 0.75
+                "Steps", nullptr);
     }
 };
 
@@ -394,13 +406,13 @@ struct BlankModuleWidget : ModuleWidget {
 
             auto* lenADisplay = new LengthDisplay;
             lenADisplay->box.pos  = mm2px(Vec(laneAX - dispW * 0.5f, labelY));
-            lenADisplay->box.size = mm2px(Vec(dispW, dispH));
+            lenADisplay->box.size = mm2px(Vec(12.f, 11.f));
             lenADisplay->value    = &module->lenA;
             addChild(lenADisplay);
 
             auto* lenBDisplay = new LengthDisplay;
             lenBDisplay->box.pos  = mm2px(Vec(laneBX - dispW * 0.5f, labelY));
-            lenBDisplay->box.size = mm2px(Vec(dispW, dispH));
+            lenBDisplay->box.size = mm2px(Vec(12.f, 11.f));
             lenBDisplay->value    = &module->lenB;
             addChild(lenBDisplay);
         }
