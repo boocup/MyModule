@@ -30,8 +30,11 @@ struct BlankModule : Module {
     RNDTRIG_A_INPUT,
     RNDTRIG_B_INPUT,
 
-    RUN_A_INPUT, // NEW: gate forces lane A run state
-    RUN_B_INPUT, // NEW: gate forces lane B run state
+    RUN_A_INPUT,
+    RUN_B_INPUT,
+
+    HOLD_A_INPUT,
+    HOLD_B_INPUT,
 
     INPUTS_LEN
   };
@@ -47,17 +50,29 @@ struct BlankModule : Module {
   float vizTempoA = 0.f;
   float vizTempoB = 0.f;
 
+  // Lane A state
   bool runningA = false;
   int stepA = 0;
   float timerA = 0.f;
   float trigTimerA = 0.f;
   float seqA[16];
 
+  // HOLD state A
+  float holdTimerA = 0.f;
+  float holdTimeA = 4.f;
+  dsp::SchmittTrigger holdTrigA;
+
+  // Lane B state
   bool runningB = false;
   int stepB = 0;
   float timerB = 0.f;
   float trigTimerB = 0.f;
   float seqB[16];
+
+  // HOLD state B
+  float holdTimerB = 0.f;
+  float holdTimeB = 4.f;
+  dsp::SchmittTrigger holdTrigB;
 
   int lenA = 2;
   int lenB = 2;
@@ -87,6 +102,9 @@ struct BlankModule : Module {
     configInput(RUN_A_INPUT, "Run gate A");
     configInput(RUN_B_INPUT, "Run gate B");
 
+    configInput(HOLD_A_INPUT, "Hold A (4s)");
+    configInput(HOLD_B_INPUT, "Hold B (4s)");
+
     configOutput(OUT_A_OUTPUT, "CV A");
     configOutput(TRIG_A_OUTPUT, "Trigger A");
     configOutput(OUT_B_OUTPUT, "CV B");
@@ -105,125 +123,177 @@ struct BlankModule : Module {
     for (int i = 0; i < 16; i++)
       seq[i] = random::uniform() * 5.f;
   }
-
   void processLane(bool &running, int &step, float &timer, float &trigTimer,
                    float bpm, float *seq, int length, float &outCV,
                    float &outTrig, dsp::SchmittTrigger &onTrig,
                    dsp::SchmittTrigger &randTrig,
                    dsp::SchmittTrigger &randInTrig, float onVal, float randVal,
                    float randInV, bool runGateConnected, float runGateV,
-                   const ProcessArgs &args) {
+                   dsp::SchmittTrigger &holdTrig, float holdInV,
+                   float &holdTimer, float holdTime, const ProcessArgs &args) {
 
-    // NEW: if run gate is patched, it *forces* running state
+    // -------------------------
+    // RUN STATE (forced or toggle)
+    // -------------------------
     if (runGateConnected) {
       running = (runGateV >= 1.f);
-    } else {
-      if (onTrig.process(onVal))
-        running = !running;
+    } else if (onTrig.process(onVal)) {
+      running = !running;
     }
 
-    bool doRand = false;
-    if (randTrig.process(randVal))
-      doRand = true;
-    if (randInTrig.process(randInV))
-      doRand = true;
-    if (doRand)
+    // HOLD: only active when jack is patched
+    if (holdTime > 0.f && holdTrig.process(holdInV)) {
+      holdTimer = holdTime;
+    }
+
+    // countdown
+    if (holdTimer > 0.f) {
+      holdTimer -= args.sampleTime;
+      if (holdTimer < 0.f)
+        holdTimer = 0.f;
+    }
+
+    // -------------------------
+    // RANDOMIZE (button or trig input)
+    // -------------------------
+    const bool doRand =
+        randTrig.process(randVal) || randInTrig.process(randInV);
+    if (doRand) {
       randomize(seq);
+    }
 
-    // safe clamp
+    // -------------------------
+    // TIMING
+    // -------------------------
     bpm = clamp(bpm, 20.f, 300.f);
-
-    // one step per beat
-    float stepTime = 60.f / bpm;
+    const float stepTime = 60.f / bpm;
 
     outCV = 0.f;
     outTrig = 0.f;
 
+    // gate pulse timer
     if (trigTimer > 0.f) {
       trigTimer -= args.sampleTime;
       if (trigTimer < 0.f)
         trigTimer = 0.f;
     }
 
+    // -------------------------
+    // SEQUENCING
+    // -------------------------
     if (running) {
-      timer += args.sampleTime;
-      if (timer >= stepTime) {
-        timer -= stepTime;
-        step = (step + 1) % length;
-        trigTimer = 0.01f;
+      // while held: freeze step/timer, keep output steady
+      if (holdTimer <= 0.f) {
+        timer += args.sampleTime;
+        if (timer >= stepTime) {
+          timer -= stepTime;
+          step = (step + 1) % length;
+          trigTimer = 0.01f;
+        }
       }
       outCV = seq[step];
     } else {
       timer = 0.f;
       step = 0;
       trigTimer = 0.f;
+      holdTimer = 0.f; // also clear any pending hold when stopped
     }
 
     if (trigTimer > 0.f)
       outTrig = 10.f;
   }
-
   void process(const ProcessArgs &args) override {
-    // Random trigger CV inputs
-    float rndInA = inputs[RNDTRIG_A_INPUT].isConnected()
-                       ? inputs[RNDTRIG_A_INPUT].getVoltage()
-                       : 0.f;
-    float rndInB = inputs[RNDTRIG_B_INPUT].isConnected()
-                       ? inputs[RNDTRIG_B_INPUT].getVoltage()
-                       : 0.f;
+    // -------------------------
+    // RANDOM TRIGGER INPUTS
+    // -------------------------
+    const float rndInA = inputs[RNDTRIG_A_INPUT].isConnected()
+                             ? inputs[RNDTRIG_A_INPUT].getVoltage()
+                             : 0.f;
 
-    // Length params (kept as module members for displays)
+    const float rndInB = inputs[RNDTRIG_B_INPUT].isConnected()
+                             ? inputs[RNDTRIG_B_INPUT].getVoltage()
+                             : 0.f;
+
+    // -------------------------
+    // LENGTH PARAMS (for display)
+    // -------------------------
     lenA = clamp((int)std::round(params[LENGTH_A_PARAM].getValue()), 1, 16);
     lenB = clamp((int)std::round(params[LENGTH_B_PARAM].getValue()), 1, 16);
 
     float outA = 0.f, trigAout = 0.f;
     float outB = 0.f, trigBout = 0.f;
 
-    // BPM params
+    // -------------------------
+    // BPM BASE VALUES
+    // -------------------------
     float bpmA = params[BPM_A_PARAM].getValue();
     float bpmB = params[BPM_B_PARAM].getValue();
 
-    // Run gate inputs (force run state when patched)
-    bool runAConn = inputs[RUN_A_INPUT].isConnected();
-    bool runBConn = inputs[RUN_B_INPUT].isConnected();
-    float runAV = runAConn ? inputs[RUN_A_INPUT].getVoltage() : 0.f;
-    float runBV = runBConn ? inputs[RUN_B_INPUT].getVoltage() : 0.f;
+    // -------------------------
+    // RUN GATES
+    // -------------------------
+    const bool runAConn = inputs[RUN_A_INPUT].isConnected();
+    const bool runBConn = inputs[RUN_B_INPUT].isConnected();
 
-    // BPM CV overrides knob when patched (and moves knob to match)
+    const float runAV = runAConn ? inputs[RUN_A_INPUT].getVoltage() : 0.f;
+    const float runBV = runBConn ? inputs[RUN_B_INPUT].getVoltage() : 0.f;
+
+    // -------------------------
+    // HOLD GATES (0V if unpatched)
+    // -------------------------
+    const float holdAV = inputs[HOLD_A_INPUT].isConnected()
+                             ? inputs[HOLD_A_INPUT].getVoltage()
+                             : 0.f;
+
+    const float holdBV = inputs[HOLD_B_INPUT].isConnected()
+                             ? inputs[HOLD_B_INPUT].getVoltage()
+                             : 0.f;
+
+    // -------------------------
+    // BPM CV OVERRIDE (moves knob)
+    // -------------------------
     if (inputs[IN_A_INPUT].isConnected()) {
-      float v = clamp(inputs[IN_A_INPUT].getVoltage(), 0.f, 10.f);
+      const float v = clamp(inputs[IN_A_INPUT].getVoltage(), 0.f, 10.f);
       bpmA = 20.f + (v / 10.f) * (300.f - 20.f);
       params[BPM_A_PARAM].setValue(bpmA);
     }
+
     if (inputs[IN_B_INPUT].isConnected()) {
-      float v = clamp(inputs[IN_B_INPUT].getVoltage(), 0.f, 10.f);
+      const float v = clamp(inputs[IN_B_INPUT].getVoltage(), 0.f, 10.f);
       bpmB = 20.f + (v / 10.f) * (300.f - 20.f);
       params[BPM_B_PARAM].setValue(bpmB);
     }
 
-    // Process lanes
+    // -------------------------
+    // PROCESS LANES
+    // -------------------------
     processLane(runningA, stepA, timerA, trigTimerA, bpmA, seqA, lenA, outA,
                 trigAout, onA, randA, randInA,
                 params[BUTTON_A_PARAM].getValue(),
-                params[RAND_A_PARAM].getValue(), rndInA, runAConn, runAV, args);
+                params[RAND_A_PARAM].getValue(), rndInA, runAConn, runAV,
+                holdTrigA, holdAV, holdTimerA, holdTimeA, args);
 
     processLane(runningB, stepB, timerB, trigTimerB, bpmB, seqB, lenB, outB,
                 trigBout, onB, randB, randInB,
                 params[BUTTON_B_PARAM].getValue(),
-                params[RAND_B_PARAM].getValue(), rndInB, runBConn, runBV, args);
+                params[RAND_B_PARAM].getValue(), rndInB, runBConn, runBV,
+                holdTrigB, holdBV, holdTimerB, holdTimeB, args);
 
-    // Outputs
+    // -------------------------
+    // OUTPUTS
+    // -------------------------
     outputs[OUT_A_OUTPUT].setVoltage(outA);
     outputs[TRIG_A_OUTPUT].setVoltage(trigAout);
     outputs[OUT_B_OUTPUT].setVoltage(outB);
     outputs[TRIG_B_OUTPUT].setVoltage(trigBout);
 
-    // Lights
+    // -------------------------
+    // LIGHTS
+    // -------------------------
     lights[RUN_A_LIGHT].setBrightness(runningA ? 1.f : 0.f);
     lights[RUN_B_LIGHT].setBrightness(runningB ? 1.f : 0.f);
   }
 };
-
 // =======================
 //   VERTICAL TEMPO METER
 // =======================
@@ -383,7 +453,7 @@ struct BlankModuleWidget : ModuleWidget {
 
     // const float meterY = 66.f;
     const float inY = 83.f;
-    const float outY = 99.f;
+    const float outY = 105.f;
 
     const float outDX = 4.5f;
     const float laneAX = colA - 7.f;
@@ -426,7 +496,7 @@ struct BlankModuleWidget : ModuleWidget {
 
     const float cvXOffset = outDX; // left/right split for the two output jacks
     const float rndTrigY =
-        outY + 12.f; // random trigger input row (under the 1v/O input)
+        outY + 11.f; // random trigger input row (under the 1v/O input)
 
     // ---------------------------
     // Lane A
@@ -514,6 +584,16 @@ struct BlankModuleWidget : ModuleWidget {
     addInput(createInputCentered<PJ301MPort>(
         mm2px(Vec(laneBCenterX + cvXOffset, rndTrigY)), module,
         BlankModule::RUN_B_INPUT));
+
+    // Lane A: HOLD input (under BPM CV)
+    addInput(
+        createInputCentered<PJ301MPort>(mm2px(Vec(laneACenterX, inY + 10.f)),
+                                        module, BlankModule::HOLD_A_INPUT));
+
+    // Lane B: HOLD input
+    addInput(
+        createInputCentered<PJ301MPort>(mm2px(Vec(laneBCenterX, inY + 10.f)),
+                                        module, BlankModule::HOLD_B_INPUT));
   }
 };
 
