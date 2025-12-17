@@ -36,7 +36,7 @@ The lanes are intentionally symmetrical but independent, making it easy to creat
 - **CV Input:** Overrides the knob when patched and updates the knob position to match.
 
 ### Length
-- Sets the number of steps in the sequence (per lane).
+- Sets the number of steps in the sequence.
 
 ### Run
 - **Button:** Toggles run state when no RUN CV is patched.
@@ -69,7 +69,7 @@ Some recommended approaches:
 - Use **different step lengths and BPM values** per lane to create evolving, non-repeating patterns.
 - Drive the CV outputs into an **external quantizer** for harmonic control.
 - Use slow or probabilistic sources (e.g. random gates, envelopes, sample & hold) to:
-  - Trigger Randomization
+  - Trigger randomization
   - Gate RUN on and off
   - Apply HOLD at musically interesting moments
 - Let one lane run continuously while the other is periodically stopped or frozen to introduce phrasing.
@@ -88,15 +88,3 @@ After cloning the repository into your Rack `plugins` directory:
 
 ```bash
 make
-
----
-
-## Acknowledgements
-
-This plugin was originally bootstrapped using the **Generic Blank** VCV Rack template by Paul Dempsey (pachde).  
-That project provided a solid starting point for plugin structure, build configuration, and development workflow.
-
-Generic Blank is licensed under the MIT license and is available at:  
-https://github.com/Paul-Dempsey/GenericBlank
-
-
