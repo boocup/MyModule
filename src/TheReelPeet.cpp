@@ -8,7 +8,7 @@ using namespace rack::ui;
 //   MODULE DEFINITION
 // =======================
 
-struct BlankModule : Module {
+struct TheReelPeet : Module {
   enum ParamId {
     BUTTON_A_PARAM,
     RAND_A_PARAM,
@@ -80,7 +80,7 @@ struct BlankModule : Module {
   dsp::SchmittTrigger onA, randA, randInA;
   dsp::SchmittTrigger onB, randB, randInB;
 
-  BlankModule() {
+  TheReelPeet() {
     config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 
     configParam(BUTTON_A_PARAM, 0.f, 1.f, 0.f, "Loop A on/off");
@@ -299,7 +299,7 @@ struct BlankModule : Module {
 // =======================
 
 struct VerticalTempoMeter : TransparentWidget {
-  BlankModule *module = nullptr;
+  TheReelPeet *module = nullptr;
   bool isB = false;
 
   void draw(const DrawArgs &args) override {
@@ -412,7 +412,7 @@ struct LengthParamDisplay : TransparentWidget {
   }
 };
 struct LockOnCableKnob : RoundBlackKnob {
-  BlankModule *m = nullptr;
+  TheReelPeet *m = nullptr;
   int inputId = -1;
 
   bool locked() const {
@@ -430,10 +430,10 @@ struct LockOnCableKnob : RoundBlackKnob {
 //   WIDGET LAYOUT
 // =======================
 
-struct BlankModuleWidget : ModuleWidget {
-  BlankModuleWidget(BlankModule *module) {
+struct TheReelPeetWidget : ModuleWidget {
+  TheReelPeetWidget(TheReelPeet *module) {
     setModule(module);
-    setPanel(createPanel(asset::plugin(pluginInstance, "res/Blank.svg")));
+    setPanel(createPanel(asset::plugin(pluginInstance, "res/TheReelPeet.svg")));
 
     addChild(createWidget<ThemedScrew>(Vec(RACK_GRID_WIDTH, 0)));
     addChild(
@@ -460,34 +460,34 @@ struct BlankModuleWidget : ModuleWidget {
     const float laneBX = colB - 4.5f;
 
     addParam(createParamCentered<LEDButton>(mm2px(Vec(colA - 7.f, onY)), module,
-                                            BlankModule::BUTTON_A_PARAM));
+                                            TheReelPeet::BUTTON_A_PARAM));
     addChild(createLightCentered<MediumLight<GreenLight>>(
-        mm2px(Vec(colA - 7.f, onY)), module, BlankModule::RUN_A_LIGHT));
+        mm2px(Vec(colA - 7.f, onY)), module, TheReelPeet::RUN_A_LIGHT));
 
     addParam(createParamCentered<LEDButton>(
-        mm2px(Vec(colB - 4.5f, onY)), module, BlankModule::BUTTON_B_PARAM));
+        mm2px(Vec(colB - 4.5f, onY)), module, TheReelPeet::BUTTON_B_PARAM));
     addChild(createLightCentered<MediumLight<GreenLight>>(
-        mm2px(Vec(colB - 4.5f, onY)), module, BlankModule::RUN_B_LIGHT));
+        mm2px(Vec(colB - 4.5f, onY)), module, TheReelPeet::RUN_B_LIGHT));
 
     addParam(createParamCentered<TL1105>(mm2px(Vec(colA - 7.f, randY)), module,
-                                         BlankModule::RAND_A_PARAM));
+                                         TheReelPeet::RAND_A_PARAM));
     addParam(createParamCentered<TL1105>(mm2px(Vec(colB - 4.5f, randY)), module,
-                                         BlankModule::RAND_B_PARAM));
+                                         TheReelPeet::RAND_B_PARAM));
 
     addParam(createParamCentered<RoundBlackKnob>(
-        mm2px(Vec(colA - 7.f, knobY)), module, BlankModule::LENGTH_A_PARAM));
+        mm2px(Vec(colA - 7.f, knobY)), module, TheReelPeet::LENGTH_A_PARAM));
     addParam(createParamCentered<RoundBlackKnob>(
-        mm2px(Vec(colB - 4.5f, knobY)), module, BlankModule::LENGTH_B_PARAM));
+        mm2px(Vec(colB - 4.5f, knobY)), module, TheReelPeet::LENGTH_B_PARAM));
     auto *kbA = createParamCentered<LockOnCableKnob>(
-        mm2px(Vec(laneAX, bpmKnobY)), module, BlankModule::BPM_A_PARAM);
+        mm2px(Vec(laneAX, bpmKnobY)), module, TheReelPeet::BPM_A_PARAM);
     kbA->m = module;
-    kbA->inputId = BlankModule::IN_A_INPUT;
+    kbA->inputId = TheReelPeet::IN_A_INPUT;
     addParam(kbA);
 
     auto *kbB = createParamCentered<LockOnCableKnob>(
-        mm2px(Vec(laneBX, bpmKnobY)), module, BlankModule::BPM_B_PARAM);
+        mm2px(Vec(laneBX, bpmKnobY)), module, TheReelPeet::BPM_B_PARAM);
     kbB->m = module;
-    kbB->inputId = BlankModule::IN_B_INPUT;
+    kbB->inputId = TheReelPeet::IN_B_INPUT;
     addParam(kbB);
 
     // --- Shared lane geometry ---
@@ -504,21 +504,21 @@ struct BlankModuleWidget : ModuleWidget {
 
     // tempo CV input (top input for lane)
     addInput(createInputCentered<PJ301MPort>(mm2px(Vec(laneACenterX, inY)),
-                                             module, BlankModule::IN_A_INPUT));
+                                             module, TheReelPeet::IN_A_INPUT));
 
     // outputs: CV + Gate (split left/right)
     addOutput(createOutputCentered<PJ301MPort>(
         mm2px(Vec(laneACenterX - cvXOffset, outY)), module,
-        BlankModule::OUT_A_OUTPUT));
+        TheReelPeet::OUT_A_OUTPUT));
 
     addOutput(createOutputCentered<PJ301MPort>(
         mm2px(Vec(laneACenterX + cvXOffset, outY)), module,
-        BlankModule::TRIG_A_OUTPUT));
+        TheReelPeet::TRIG_A_OUTPUT));
 
     // random trigger input (centered, under 1v/O input)
     addInput(createInputCentered<PJ301MPort>(
         mm2px(Vec(laneACenterX - cvXOffset, rndTrigY)), module,
-        BlankModule::RNDTRIG_A_INPUT));
+        TheReelPeet::RNDTRIG_A_INPUT));
 
     // ---------------------------
     // Lane B
@@ -526,21 +526,21 @@ struct BlankModuleWidget : ModuleWidget {
 
     // tempo CV input
     addInput(createInputCentered<PJ301MPort>(mm2px(Vec(laneBCenterX, inY)),
-                                             module, BlankModule::IN_B_INPUT));
+                                             module, TheReelPeet::IN_B_INPUT));
 
     // outputs: CV + Gate
     addOutput(createOutputCentered<PJ301MPort>(
         mm2px(Vec(laneBCenterX - cvXOffset, outY)), module,
-        BlankModule::OUT_B_OUTPUT));
+        TheReelPeet::OUT_B_OUTPUT));
 
     addOutput(createOutputCentered<PJ301MPort>(
         mm2px(Vec(laneBCenterX + cvXOffset, outY)), module,
-        BlankModule::TRIG_B_OUTPUT));
+        TheReelPeet::TRIG_B_OUTPUT));
 
     // random trigger input
     addInput(createInputCentered<PJ301MPort>(
         mm2px(Vec(laneBCenterX - cvXOffset, rndTrigY)), module,
-        BlankModule::RNDTRIG_B_INPUT));
+        TheReelPeet::RNDTRIG_B_INPUT));
 
     if (module) {
       const float dispW = 12.f;
@@ -563,13 +563,13 @@ struct BlankModuleWidget : ModuleWidget {
 
     if (module) {
       auto *bpmDispA = new BPMDisplay();
-      bpmDispA->param = &module->params[BlankModule::BPM_A_PARAM];
+      bpmDispA->param = &module->params[TheReelPeet::BPM_A_PARAM];
       bpmDispA->box.pos = mm2px(Vec(laneAX - 6.f, bpmKnobY + 4.f));
       bpmDispA->box.size = mm2px(Vec(12.f, 11.f));
       addChild(bpmDispA);
 
       auto *bpmDispB = new BPMDisplay();
-      bpmDispB->param = &module->params[BlankModule::BPM_B_PARAM];
+      bpmDispB->param = &module->params[TheReelPeet::BPM_B_PARAM];
       bpmDispB->box.pos = mm2px(Vec(laneBX - 6.f, bpmKnobY + 4.f));
       bpmDispB->box.size = mm2px(Vec(12.f, 11.f));
       addChild(bpmDispB);
@@ -578,23 +578,24 @@ struct BlankModuleWidget : ModuleWidget {
     // Lane A: run gate input (to the right of RND input)
     addInput(createInputCentered<PJ301MPort>(
         mm2px(Vec(laneACenterX + cvXOffset, rndTrigY)), module,
-        BlankModule::RUN_A_INPUT));
+        TheReelPeet::RUN_A_INPUT));
 
     // Lane B: run gate input
     addInput(createInputCentered<PJ301MPort>(
         mm2px(Vec(laneBCenterX + cvXOffset, rndTrigY)), module,
-        BlankModule::RUN_B_INPUT));
+        TheReelPeet::RUN_B_INPUT));
 
     // Lane A: HOLD input (under BPM CV)
     addInput(
         createInputCentered<PJ301MPort>(mm2px(Vec(laneACenterX, inY + 10.f)),
-                                        module, BlankModule::HOLD_A_INPUT));
+                                        module, TheReelPeet::HOLD_A_INPUT));
 
     // Lane B: HOLD input
     addInput(
         createInputCentered<PJ301MPort>(mm2px(Vec(laneBCenterX, inY + 10.f)),
-                                        module, BlankModule::HOLD_B_INPUT));
+                                        module, TheReelPeet::HOLD_B_INPUT));
   }
 };
 
-Model *modelBlank = createModel<BlankModule, BlankModuleWidget>("blank");
+Model *modelTheReelPeet =
+    createModel<TheReelPeet, TheReelPeetWidget>("thereelpeet");

@@ -3,7 +3,7 @@ RACK_DIR ?= /Users/peterbuchhop/vcv-dev/Rack
 FLAGS +=
 
 SOURCES += src/plugin.cpp
-SOURCES += src/Blank.cpp
+SOURCES += src/TheReelPeet.cpp
 
 DISTRIBUTABLES += res
 # DISTRIBUTABLES += presets
