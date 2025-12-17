@@ -1,6 +1,6 @@
 # TheReelPeet
 
-![TheReelPeet panel](doc/images/TheReelPeet.svg)
+![TheReelPeet panel](doc/image/TheReelPeet.svg)
 
 **TheReelPeet** is a dual, clock-driven generative sequencer for VCV Rack, designed for evolving, overlapping melodic motion rather than strict step programming.
 
@@ -98,4 +98,5 @@ That project provided a solid starting point for plugin structure, build configu
 
 Generic Blank is licensed under the MIT license and is available at:  
 https://github.com/Paul-Dempsey/GenericBlank
+
 
