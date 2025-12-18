@@ -38,13 +38,15 @@ jobs:
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-autotools
+            mingw-w64-x86_64-libtool
 
       - name: Clone Rack
         shell: msys2 {0}
         run: |
           git clone --recursive https://github.com/VCVRack/Rack.git rack
 
-      # Builds jansson, glew, rtaudio, etc.
+      # Builds jansson, glew, rtaudio, speexdsp, etc.
       - name: Build Rack dependencies
         shell: msys2 {0}
         run: |
