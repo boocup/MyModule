@@ -4,14 +4,15 @@ on:
   push:
     branches: [ main ]
     tags:
-      - "v*"
+      - 'v*'
   pull_request:
 
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -22,14 +23,18 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: '3.x'
 
-      - name: Clone VCV Rack
+      - name: Clone Rack
         run: |
           git clone --recursive https://github.com/VCVRack/Rack.git rack
 
+      # ✅ THIS is what you're missing (it populates rack/dep/include, incl jansson.h)
+      - name: Build Rack dependencies
+        run: |
+          make -C rack dep
+
       - name: Build plugin
-        shell: bash
         run: |
           export RACK_DIR=$PWD/rack
           make
