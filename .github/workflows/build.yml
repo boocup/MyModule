@@ -81,32 +81,61 @@ jobs:
       # ----------------------------
       # Clone Rack
       # ----------------------------
-      - name: Clone Rack
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      - name: Clone Rack (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          git clone --recursive https://github.com/VCVRack/Rack.git rack
+
+      - name: Clone Rack (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
         run: |
           git clone --recursive https://github.com/VCVRack/Rack.git rack
 
       # ----------------------------
       # Build Rack dependencies
       # ----------------------------
-      - name: Build Rack dependencies
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      - name: Build Rack dependencies (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          make -C rack dep
+
+      - name: Build Rack dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
         run: |
           make -C rack dep
 
       # ----------------------------
       # Build Rack (libRack)
       # ----------------------------
-      - name: Build Rack
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      - name: Build Rack (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          make -C rack
+
+      - name: Build Rack (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
         run: |
           make -C rack
 
       # ----------------------------
       # Build plugin
       # ----------------------------
-      - name: Build plugin
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      - name: Build plugin (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          export RACK_DIR=$PWD/rack
+          make
+
+      - name: Build plugin (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
         run: |
           export RACK_DIR=$PWD/rack
           make
