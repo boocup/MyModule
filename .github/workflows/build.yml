@@ -1,4 +1,4 @@
-name: Build VCV Rack Plugin (Windows)
+name: Build VCV Rack Plugin
 
 on:
   push:
@@ -9,7 +9,12 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout repository
@@ -22,8 +27,39 @@ jobs:
         with:
           python-version: "3.x"
 
-      # MSYS2 in MINGW64 mode (required for Rack deps)
+      # ----------------------------
+      # Linux dependencies
+      # ----------------------------
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgl1-mesa-dev \
+            xorg-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libjack-jackd2-dev \
+            libasound2-dev \
+            libpulse-dev
+
+      # ----------------------------
+      # macOS dependencies
+      # ----------------------------
+      - name: Install macOS build dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install autoconf automake libtool pkg-config
+
+      # ----------------------------
+      # Windows (MSYS2 / MINGW64)
+      # ----------------------------
       - name: Set up MSYS2
+        if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -42,25 +78,35 @@ jobs:
             mingw-w64-x86_64-autotools
             mingw-w64-x86_64-libtool
 
+      # ----------------------------
+      # Clone Rack
+      # ----------------------------
       - name: Clone Rack
-        shell: msys2 {0}
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
         run: |
           git clone --recursive https://github.com/VCVRack/Rack.git rack
 
-      # Builds jansson, glew, rtaudio, speexdsp, etc.
+      # ----------------------------
+      # Build Rack dependencies
+      # ----------------------------
       - name: Build Rack dependencies
-        shell: msys2 {0}
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
         run: |
           make -C rack dep
 
-      # REQUIRED: builds libRack
+      # ----------------------------
+      # Build Rack (libRack)
+      # ----------------------------
       - name: Build Rack
-        shell: msys2 {0}
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
         run: |
           make -C rack
 
+      # ----------------------------
+      # Build plugin
+      # ----------------------------
       - name: Build plugin
-        shell: msys2 {0}
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
         run: |
           export RACK_DIR=$PWD/rack
           make
