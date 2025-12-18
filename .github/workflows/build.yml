@@ -1,0 +1,34 @@
+name: Build VCV Rack Plugin
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Clone Rack SDK
+        run: |
+          git clone --recursive https://github.com/VCVRack/Rack.git rack
+
+      - name: Build plugin
+        run: |
+          export RACK_DIR=$PWD/rack
+          make
