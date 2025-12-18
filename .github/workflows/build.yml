@@ -41,7 +41,8 @@ jobs:
             libxcursor-dev \
             libxi-dev \
             libjack-jackd2-dev \
-            libasound2-dev
+            libasound2-dev \
+            libpulse-dev
 
       # Windows: Rack dep build uses wget
       - name: Install Windows build dependencies
@@ -54,6 +55,7 @@ jobs:
         run: |
           git clone --recursive https://github.com/VCVRack/Rack.git rack
 
+      # Builds Rack dependencies into rack/dep
       - name: Build Rack dependencies
         run: |
           make -C rack dep
