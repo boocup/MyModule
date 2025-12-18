@@ -12,9 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 🔒 Focus on Linux only for now
-        os: [ubuntu-latest]
-        # os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -29,29 +27,6 @@ jobs:
         with:
           python-version: "3.x"
 
-      # Linux: OpenGL/X11 + audio deps needed to build Rack + deps
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgl1-mesa-dev \
-            xorg-dev \
-            libx11-dev \
-            libxrandr-dev \
-            libxinerama-dev \
-            libxcursor-dev \
-            libxi-dev \
-            libjack-jackd2-dev \
-            libasound2-dev \
-            libpulse-dev
-
-      # (Disabled for now)
-      # - name: Install Windows build dependencies
-      #   if: runner.os == 'Windows'
-      #   shell: msys2 {0}
-      #   run: |
-      #     pacman -S --noconfirm wget
-
       - name: Clone Rack
         run: |
           git clone --recursive https://github.com/VCVRack/Rack.git rack
@@ -61,7 +36,7 @@ jobs:
         run: |
           make -C rack dep
 
-      # 🔑 REQUIRED: build Rack itself (creates libRack)
+      # REQUIRED: build Rack itself (creates libRack)
       - name: Build Rack
         run: |
           make -C rack
