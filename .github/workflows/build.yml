@@ -22,19 +22,22 @@ jobs:
         with:
           python-version: "3.x"
 
-      # MSYS2 environment needed for Rack deps
+      # MSYS2 in MINGW64 mode (required for Rack deps)
       - name: Set up MSYS2
         uses: msys2/setup-msys2@v2
         with:
+          msystem: MINGW64
           update: true
           install: >
             base-devel
-            mingw-w64-x86_64-toolchain
-            cmake
-            wget
             git
+            wget
             unzip
             tar
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkgconf
 
       - name: Clone Rack
         shell: msys2 {0}
