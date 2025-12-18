@@ -30,6 +30,7 @@ jobs:
           install: >
             base-devel
             mingw-w64-x86_64-toolchain
+            cmake
             wget
             git
             unzip
