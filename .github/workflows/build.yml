@@ -1,3 +1,4 @@
+
 name: Build VCV Rack Plugin
 
 on:
@@ -27,7 +28,8 @@ jobs:
         with:
           python-version: "3.x"
 
-      # Linux runners need OpenGL/X11 dev headers so Rack deps (GLEW) can build.
+      # Linux runners need OpenGL/X11 dev headers so Rack deps (GLEW) can build,
+      # and JACK headers so Rack deps (rtmidi) can build.
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         run: |
@@ -39,7 +41,8 @@ jobs:
             libxrandr-dev \
             libxinerama-dev \
             libxcursor-dev \
-            libxi-dev
+            libxi-dev \
+            libjack-jackd2-dev
 
       - name: Clone Rack
         run: |
