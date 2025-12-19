@@ -1,8 +1,8 @@
-# TheReelPeet
+# TheReelPeet-Seq
 
 ![TheReelPeet panel](doc/image/TheReelPeet.svg)
 
-**TheReelPeet** is a dual, clock-driven generative sequencer for VCV Rack, designed for evolving, overlapping melodic motion rather than strict step programming.
+**TheReelPeet-Seq** is a dual, clock-driven generative sequencer for VCV Rack, designed for evolving, overlapping melodic motion rather than strict step programming.
 
 Each lane produces randomized CV values over a configurable number of steps, with independent tempo control, gating, and the ability to temporarily freeze motion using a HOLD input. The module is intended to be exploratory and musical, rewarding asymmetry and interaction between lanes.
 
@@ -12,7 +12,7 @@ TheReelPeet is licensed under the [MIT license](./LICENSE).
 
 ## Overview
 
-TheReelPeet contains **two independent sequencer lanes (A and B)**.
+TheReelPeet-Seq contains **two independent sequencer lanes (A and B)**.
 
 Each lane includes:
 
