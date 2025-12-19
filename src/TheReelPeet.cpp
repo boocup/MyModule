@@ -83,42 +83,78 @@ struct TheReelPeet : Module {
   TheReelPeet() {
     config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 
-    configParam(BUTTON_A_PARAM, 0.f, 1.f, 0.f, "Loop A on/off");
-    configParam(RAND_A_PARAM, 0.f, 1.f, 0.f, "Randomize A");
-    configParam(LENGTH_A_PARAM, 2.f, 16.f, 3.f, "Length A");
+    // --- Lane A params
+    configParam(
+        BUTTON_A_PARAM, 0.f, 1.f, 0.f,
+        "Lane A Run toggle. Toggles running when RUN CV is NOT patched.");
+    configParam(RAND_A_PARAM, 0.f, 1.f, 0.f,
+                "Lane A Randomize button. Randomizes Lane A sequence values.");
+    configParam(LENGTH_A_PARAM, 2.f, 16.f, 3.f,
+                "Lane A Length. Number of steps (2–16).");
 
-    configParam(BUTTON_B_PARAM, 0.f, 1.f, 0.f, "Loop B on/off");
-    configParam(RAND_B_PARAM, 0.f, 1.f, 0.f, "Randomize B");
-    configParam(LENGTH_B_PARAM, 2.f, 16.f, 3.f, "Length B");
+    // --- Lane B params
+    configParam(
+        BUTTON_B_PARAM, 0.f, 1.f, 0.f,
+        "Lane B Run toggle. Toggles running when RUN CV is NOT patched.");
+    configParam(RAND_B_PARAM, 0.f, 1.f, 0.f,
+                "Lane B Randomize button. Randomizes Lane B sequence values.");
+    configParam(LENGTH_B_PARAM, 2.f, 16.f, 3.f,
+                "Lane B Length. Number of steps (2–16).");
 
-    configParam(BPM_A_PARAM, 20.f, 300.f, 120.f, "BPM A");
-    configParam(BPM_B_PARAM, 20.f, 300.f, 120.f, "BPM B");
+    // --- Tempo params
+    configParam(BPM_A_PARAM, 20.f, 300.f, 120.f,
+                "Lane A BPM. Base tempo (20–300).");
+    configParam(BPM_B_PARAM, 20.f, 300.f, 120.f,
+                "Lane B BPM. Base tempo (20–300).");
 
-    configInput(IN_A_INPUT, "Tempo CV A");
-    configInput(IN_B_INPUT, "Tempo CV B");
-    configInput(RNDTRIG_A_INPUT, "Random trigger A");
-    configInput(RNDTRIG_B_INPUT, "Random trigger B");
+    // --- Tempo CV inputs (per lane)
+    configInput(IN_A_INPUT, "Tempo CV A. When patched, sets Lane A BPM from "
+                            "0–10V (20–300 BPM) and overrides the BPM knob.");
+    configInput(IN_B_INPUT, "Tempo CV B. When patched, sets Lane B BPM from "
+                            "0–10V (20–300 BPM) and overrides the BPM knob.");
 
-    configInput(RUN_A_INPUT, "Run gate A");
-    configInput(RUN_B_INPUT, "Run gate B");
+    // --- Randomize trigger inputs (per lane)
+    configInput(
+        RNDTRIG_A_INPUT,
+        "Randomize Trigger A. Rising edge randomizes Lane A sequence values.");
+    configInput(
+        RNDTRIG_B_INPUT,
+        "Randomize Trigger B. Rising edge randomizes Lane B sequence values.");
 
-    configInput(HOLD_A_INPUT, "Hold A (4s)");
-    configInput(HOLD_B_INPUT, "Hold B (4s)");
+    // --- Run CV inputs (per lane)
+    configInput(RUN_A_INPUT, "Run CV A (gate). High = running, low = stopped. "
+                             "Overrides Run toggle when patched.");
+    configInput(RUN_B_INPUT, "Run CV B (gate). High = running, low = stopped. "
+                             "Overrides Run toggle when patched.");
 
-    configOutput(OUT_A_OUTPUT, "CV A");
-    configOutput(TRIG_A_OUTPUT, "Trigger A");
-    configOutput(OUT_B_OUTPUT, "CV B");
-    configOutput(TRIG_B_OUTPUT, "Trigger B");
+    // --- Hold trigger inputs (timed hold, per lane)
+    configInput(HOLD_A_INPUT, "Hold Trigger A. Rising edge starts a ~4s freeze "
+                              "(Lane A does not advance steps during hold).");
+    configInput(HOLD_B_INPUT, "Hold Trigger B. Rising edge starts a ~4s freeze "
+                              "(Lane B does not advance steps during hold).");
 
-    configLight(RUN_A_LIGHT, "Lane A running");
-    configLight(RUN_B_LIGHT, "Lane B running");
+    // --- Outputs
+    configOutput(
+        OUT_A_OUTPUT,
+        "Pitch CV A. Current step value (use with a quantizer if desired).");
+    configOutput(TRIG_A_OUTPUT, "Trigger A. Short trigger on each step advance "
+                                "(no triggers while held or stopped).");
+    configOutput(
+        OUT_B_OUTPUT,
+        "Pitch CV B. Current step value (use with a quantizer if desired).");
+    configOutput(TRIG_B_OUTPUT, "Trigger B. Short trigger on each step advance "
+                                "(no triggers while held or stopped).");
 
+    // --- Lights
+    configLight(RUN_A_LIGHT, "Lane A running (on when running).");
+    configLight(RUN_B_LIGHT, "Lane B running (on when running).");
+
+    // --- Initialize sequences
     for (int i = 0; i < 16; i++) {
       seqA[i] = random::uniform() * 5.f;
       seqB[i] = random::uniform() * 5.f;
     }
   }
-
   void randomize(float *seq) {
     for (int i = 0; i < 16; i++)
       seq[i] = random::uniform() * 5.f;
@@ -598,4 +634,4 @@ struct TheReelPeetWidget : ModuleWidget {
 };
 
 Model *modelTheReelPeet =
-    createModel<TheReelPeet, TheReelPeetWidget>("thereelpeet");
+    createModel<TheReelPeet, TheReelPeetWidget>("thereelpeet-seq");

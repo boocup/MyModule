@@ -1,7 +1,7 @@
 {
-  "slug": "thereelpeet",
+  "slug": "thereelpeet-seq",
   "name": "TheReelPeet",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "license": "MIT",
   "brand": "Pete Buchhop",
   "author": "Pete Buchhop",
@@ -14,7 +14,7 @@
   "minRackVersion": "2.4.0",
   "modules": [
     {
-      "slug": "thereelpeet",
+      "slug": "thereelpeet-seq",
       "name": "TheReelPeet",
       "description": "Dual generative sequencer with per-lane BPM, step length, randomized pitch and trigger outputs, trigger-based randomization, voltage-controlled run state, and hold freeze.",
       "panel": "res/TheReelPeet.svg",
