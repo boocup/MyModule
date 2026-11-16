@@ -4,8 +4,8 @@
             "name": "Mac",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/Users/peterbuchhop/vcv-dev/Rack/include",
-                "/Users/peterbuchhop/vcv-dev/Rack/dep/include"
+                "${env:HOME}/vcv-dev/Rack/include",
+                "${env:HOME}/vcv-dev/Rack/dep/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",

@@ -17,9 +17,9 @@
       {
         "label": "Rack: run",
         "type": "shell",
-        "command": "/Users/peterbuchhop/vcv-dev/Rack/Rack",
+        "command": "${env:HOME}/vcv-dev/Rack/Rack",
         "options": {
-          "cwd": "/Users/peterbuchhop/vcv-dev/Rack"
+          "cwd": "${env:HOME}/vcv-dev/Rack"
         },
         "problemMatcher": []
       }
